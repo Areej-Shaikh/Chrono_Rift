@@ -1,0 +1,5 @@
+.vscode/
+submissions/bin/
+*.o
+*.out
+*.exe
