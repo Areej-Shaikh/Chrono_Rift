@@ -73,7 +73,6 @@ void initializeSharedState(SharedState* state) {
     sem_init(&state->stateLock, 1, 1);
     sem_init(&state->actionReady, 1, 0);
     sem_init(&state->actionDone, 1, 0);
-
     state->playerCount = 1;
     state->enemyCount = 2;
 
@@ -97,7 +96,11 @@ void initializeSharedState(SharedState* state) {
 
     state->currentTurnType = ENTITY_NONE;
     state->currentTurnId = -1;
-
+state->inputBuffer.hasInput = 0;
+state->inputBuffer.playerId = -1;
+state->inputBuffer.actionType = ACTION_NONE;
+state->inputBuffer.targetType = ENTITY_NONE;
+state->inputBuffer.targetId = -1;
     state->request.ready = 0;
 
     state->enemiesKilled = 0;

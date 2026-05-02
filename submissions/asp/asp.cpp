@@ -15,21 +15,31 @@ int main() {
         return 1;
     }
 
-    cout << "ASP process attached to shared memory." << endl;
+    cout << "ASP attached to shared memory." << endl;
+    cout << "ASP waiting for game initialization..." << endl;
+
+    while (state->gameInitialized == 0) {
+        usleep(100000);
+    }
 
     sem_wait(&state->stateLock);
 
-    cout << "ASP can read enemy count: " << state->enemyCount << endl;
+    cout << "\nASP can read initialized enemies:" << endl;
+    cout << "Enemy Count: " << state->enemyCount << endl;
 
-    if (state->enemyCount > 0) {
-        cout << "Enemy 0 HP from ASP: " << state->enemies[0].hp << endl;
+    for (int i = 0; i < state->enemyCount; i++) {
+        cout << "Enemy " << i
+             << " HP: " << state->enemies[i].hp
+             << " Damage: " << state->enemies[i].damage
+             << " Speed: " << state->enemies[i].speed
+             << endl;
     }
 
     sem_post(&state->stateLock);
 
     detachSharedMemory(state);
 
-    cout << "ASP process finished test." << endl;
+    cout << "ASP finished initialization test." << endl;
 
     return 0;
 }

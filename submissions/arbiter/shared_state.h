@@ -6,6 +6,9 @@
 const int MAX_PLAYERS = 4;
 const int MAX_ENEMIES = 9;
 
+const int PLAYER_MAX_STAMINA = 100;
+const int ENEMY_MAX_STAMINA = 150;
+
 const int ENTITY_NONE = 0;
 const int ENTITY_PLAYER = 1;
 const int ENTITY_ENEMY = 2;
@@ -48,10 +51,22 @@ struct ActionRequest {
     int targetId;
 };
 
+struct InputBuffer {
+    int hasInput;
+    int playerId;
+    int actionType;
+    int targetType;
+    int targetId;
+};
 struct SharedState {
     sem_t stateLock;
     sem_t actionReady;
     sem_t actionDone;
+
+    int partySizeSelected;
+    int partySize;
+
+    int gameInitialized;
 
     int playerCount;
     int enemyCount;
@@ -62,6 +77,7 @@ struct SharedState {
     int currentTurnType;
     int currentTurnId;
 
+    InputBuffer inputBuffer;
     ActionRequest request;
 
     int enemiesKilled;
