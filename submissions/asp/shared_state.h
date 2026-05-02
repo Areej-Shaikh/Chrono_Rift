@@ -1,0 +1,71 @@
+#ifndef SHARED_STATE_H
+#define SHARED_STATE_H
+
+#include <semaphore.h>
+
+const int MAX_PLAYERS = 4;
+const int MAX_ENEMIES = 9;
+
+const int ENTITY_NONE = 0;
+const int ENTITY_PLAYER = 1;
+const int ENTITY_ENEMY = 2;
+
+const int ACTION_NONE = 0;
+const int ACTION_STRIKE = 1;
+const int ACTION_SKIP = 2;
+
+const int GAME_RUNNING = 0;
+const int GAME_WIN = 1;
+const int GAME_LOSE = 2;
+const int GAME_QUIT = 3;
+
+struct Player {
+    int id;
+    int hp;
+    int maxHp;
+    int damage;
+    int speed;
+    int stamina;
+    int alive;
+};
+
+struct Enemy {
+    int id;
+    int hp;
+    int maxHp;
+    int damage;
+    int speed;
+    int stamina;
+    int alive;
+};
+
+struct ActionRequest {
+    int ready;
+    int entityType;
+    int entityId;
+    int actionType;
+    int targetType;
+    int targetId;
+};
+
+struct SharedState {
+    sem_t stateLock;
+    sem_t actionReady;
+    sem_t actionDone;
+
+    int playerCount;
+    int enemyCount;
+
+    Player players[MAX_PLAYERS];
+    Enemy enemies[MAX_ENEMIES];
+
+    int currentTurnType;
+    int currentTurnId;
+
+    ActionRequest request;
+
+    int enemiesKilled;
+    int gameStatus;
+};
+
+#endif
