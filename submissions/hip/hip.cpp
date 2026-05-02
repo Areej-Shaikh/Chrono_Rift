@@ -299,6 +299,30 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
                     return ACTION_SKIP;
                 }
             }
+
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    int mouseX = event.mouseButton.x;
+                    int mouseY = event.mouseButton.y;
+
+                    for (int i = 0; i < optionCount; i++) {
+                        int boxX = 260;
+                        int boxY = 430 + i * 45;
+                        int boxW = 180;
+                        int boxH = 35;
+
+                        if (mouseX >= boxX && mouseX <= boxX + boxW &&
+                            mouseY >= boxY && mouseY <= boxY + boxH) {
+
+                            if (i == 0) {
+                                return ACTION_STRIKE;
+                            }
+
+                            return ACTION_SKIP;
+                        }
+                    }
+                }
+            }
         }
 
         window.clear(sf::Color(15, 15, 25));
@@ -421,6 +445,32 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
                     }
                 }
             }
+
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    int mouseX = event.mouseButton.x;
+                    int mouseY = event.mouseButton.y;
+
+                    sem_wait(&state->stateLock);
+
+                    for (int i = 0; i < state->enemyCount; i++) {
+                        int boxX = 235;
+                        int boxY = 330 + i * 32;
+                        int boxW = 230;
+                        int boxH = 28;
+
+                        if (mouseX >= boxX && mouseX <= boxX + boxW &&
+                            mouseY >= boxY && mouseY <= boxY + boxH &&
+                            state->enemies[i].alive == 1) {
+
+                            sem_post(&state->stateLock);
+                            return i;
+                        }
+                    }
+
+                    sem_post(&state->stateLock);
+                }
+            }
         }
 
         window.clear(sf::Color(15, 15, 25));
@@ -510,6 +560,9 @@ void handlePlayerTurnInput(sf::RenderWindow& window, sf::Font& font, SharedState
     }
 
     writeInputBuffer(state, playerId, actionType, targetType, targetId);
+    cout << "HIP wrote input buffer for Player " << playerId
+     << " action: " << actionType
+     << " target: " << targetId << endl;
 }
 
 int main() {
@@ -561,10 +614,12 @@ if (!font.loadFromFile("assets/font.ttf")) {
     }
 
    sem_post(&state->stateLock);
+createPlayerThreads(state);
 
-    createPlayerThreads(state);
+int lastHandledTurnType = ENTITY_NONE;
+int lastHandledTurnId = -1;
 
-    while (window.isOpen() && state->gameStatus == GAME_RUNNING) {
+while (window.isOpen() && state->gameStatus == GAME_RUNNING) {
         sf::Event event;
 
         while (window.pollEvent(event)) {
@@ -588,16 +643,27 @@ if (!font.loadFromFile("assets/font.ttf")) {
         }
 
         sem_post(&state->stateLock);
+if (isPlayerTurn == 1) {
+    if (lastHandledTurnType != ENTITY_PLAYER || lastHandledTurnId != activePlayerId) {
+        handlePlayerTurnInput(window, font, state, activePlayerId);
 
-        if (isPlayerTurn == 1) {
-            handlePlayerTurnInput(window, font, state, activePlayerId);
-        }
-        else {
-            window.clear(sf::Color(15, 15, 25));
-            drawBattleView(window, font, state);
-            window.display();
-        }
+        lastHandledTurnType = ENTITY_PLAYER;
+        lastHandledTurnId = activePlayerId;
+    }
+    else {
+        window.clear(sf::Color(15, 15, 25));
+        drawBattleView(window, font, state);
+        window.display();
+    }
+}
+else {
+    lastHandledTurnType = ENTITY_NONE;
+    lastHandledTurnId = -1;
 
+    window.clear(sf::Color(15, 15, 25));
+    drawBattleView(window, font, state);
+    window.display();
+}
         usleep(100000);
     }
 detachSharedMemory(state);
