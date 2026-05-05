@@ -64,7 +64,7 @@ struct SharedState {
     sem_t stateLock;
     sem_t actionReady;
     sem_t actionDone;
-
+int arbiterPid;
     int partySizeSelected;
     int partySize;
 

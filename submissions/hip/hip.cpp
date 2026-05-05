@@ -5,8 +5,22 @@
 #include "input_buffer.h"
 #include <iostream>
 #include <unistd.h>
+#include <csignal>
 
 using namespace std;
+
+void requestQuit(SharedState* state) {
+    sem_wait(&state->stateLock);
+    int arbiterPid = state->arbiterPid;
+    state->gameStatus = GAME_QUIT;
+    sem_post(&state->stateLock);
+
+    sem_post(&state->actionReady);
+
+    if (arbiterPid > 0) {
+        kill(arbiterPid, SIGTERM);
+    }
+}
 
 
 void centerText(sf::Text& text, float x, float y, float w, float h) {
@@ -58,7 +72,7 @@ sf::RectangleShape makeBar(float x, float y, float w, float h, int value, int ma
     return bar;
 }
 
-int selectPartySize(sf::RenderWindow& window, sf::Font& font) {
+int selectPartySize(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
     int selected = 0;
 
     while (window.isOpen()) {
@@ -71,6 +85,11 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font) {
             }
 
             if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Q) {
+                    requestQuit(state);
+                    window.close();
+                    return 1;
+                }
                 if (event.key.code == sf::Keyboard::Up) {
                     selected--;
 
@@ -355,6 +374,7 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
     sem_post(&state->stateLock);
 }
 
+
 int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
     int selected = 0;
     const int optionCount = 4;
@@ -366,14 +386,17 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
             if (event.type == sf::Event::Closed) {
                 window.close();
 
-                sem_wait(&state->stateLock);
-                state->gameStatus = GAME_QUIT;
-                sem_post(&state->stateLock);
+                requestQuit(state);
 
                 return ACTION_SKIP;
             }
 
             if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Q) {
+                    requestQuit(state);
+                    window.close();
+                    return ACTION_SKIP;
+                }
                 if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::Up) {
                     selected--;
 
@@ -441,6 +464,7 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
 
     return ACTION_SKIP;
 }
+
 int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
     int selected = 0;
 
@@ -466,14 +490,17 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
             if (event.type == sf::Event::Closed) {
                 window.close();
 
-                sem_wait(&state->stateLock);
-                state->gameStatus = GAME_QUIT;
-                sem_post(&state->stateLock);
+                requestQuit(state);
 
                 return -1;
             }
 
             if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Q) {
+                    requestQuit(state);
+                    window.close();
+                    return -1;
+                }
                 if (event.key.code == sf::Keyboard::Up) {
                     selected--;
 
@@ -601,7 +628,7 @@ if (!font.loadFromFile("assets/font.ttf")) {
     detachSharedMemory(state);
     return 1;
 }
-    int partySize = selectPartySize(window, font);
+    int partySize = selectPartySize(window, font, state);
 
     sem_wait(&state->stateLock);
 
@@ -640,11 +667,12 @@ while (window.isOpen() && state->gameStatus == GAME_RUNNING) {
 
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) {
+                requestQuit(state);
                 window.close();
-
-                sem_wait(&state->stateLock);
-                state->gameStatus = GAME_QUIT;
-                sem_post(&state->stateLock);
+            }
+            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Q) {
+                requestQuit(state);
+                window.close();
             }
         }
 

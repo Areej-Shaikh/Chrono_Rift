@@ -29,7 +29,8 @@ const int ROLL_SECOND_LAST  = 2;
 // Global pointer so signal handlers can reach state
 // ─────────────────────────────────────────────
 static SharedState* g_state = nullptr;
-static pid_t        g_aspPid = -1;   // PID of Automated Strategic Process (to be set later)
+static pid_t        g_aspPid = -1;   // PID of Automated Strategic Process
+static pid_t        g_hipPid = -1;   // PID of Human Interfacing Process
 
 // ─────────────────────────────────────────────
 // SIGTERM handler – player chose to quit
@@ -64,6 +65,18 @@ static int randRange(int lo, int hi) {
     return lo + rand() % (hi - lo + 1);
 }
 
+void spawnEnemyAt(SharedState* state, int index) {
+    int hp = ROLL_LAST2 + randRange(50, 200);
+
+    state->enemies[index].id      = index;
+    state->enemies[index].maxHp   = hp;
+    state->enemies[index].hp      = hp;
+    state->enemies[index].damage  = ROLL_SECOND_LAST + 10;
+    state->enemies[index].speed   = randRange(10, 30);
+    state->enemies[index].stamina = 0;
+    state->enemies[index].alive   = 1;
+}
+
 // ─────────────────────────────────────────────
 // Initialize all entities with roll-number-based stats
 // Called after HIP signals partySizeSelected
@@ -93,15 +106,7 @@ void initEntities(SharedState* state) {
     state->enemyCount = enemyCount;
 
     for (int i = 0; i < enemyCount; i++) {
-        int hp = ROLL_LAST2 + randRange(50, 200);    // 20 + rand(50,200)
-
-        state->enemies[i].id      = i;
-        state->enemies[i].maxHp   = hp;
-        state->enemies[i].hp      = hp;
-        state->enemies[i].damage  = ROLL_SECOND_LAST + 10; // 12
-        state->enemies[i].speed   = randRange(10, 30);
-        state->enemies[i].stamina = 0;
-        state->enemies[i].alive   = 1;
+        spawnEnemyAt(state, i);
     }
 
     state->currentTurnType = ENTITY_NONE;
@@ -203,6 +208,14 @@ void processAction(SharedState* state) {
 
                     cout << "[Arbiter] Enemy " << tid << " defeated! Total kills: "
                          << state->enemiesKilled << endl;
+
+                    if (state->enemiesKilled < 10) {
+                        spawnEnemyAt(state, tid);
+                        char spawnLog[100];
+                        sprintf(spawnLog, "A new Enemy %d entered the rift", tid);
+                        addActionLog(state, spawnLog);
+                        cout << "[Arbiter] Enemy " << tid << " respawned for continued combat." << endl;
+                    }
                 }
             }
         }
@@ -335,59 +348,64 @@ void processAction(SharedState* state) {
 }
 
 // ─────────────────────────────────────────────
-// Find which entity has the highest stamina and
-// has reached its max. Returns true if found.
+// Arrival-time scheduler helpers
 // Must be called with stateLock held.
-// Fills outType and outId.
+// This follows the rubric rule: stamina fills concurrently, but the first
+// entity whose remaining stamina finishes earliest gets the serial turn.
 // ─────────────────────────────────────────────
-int findNextActor(SharedState* state, int& outType, int& outId) {
-    // We look for the entity whose stamina >= its max AND is highest
-    // Ties broken by entity type (player first) then by id
+int ceilDivPositive(int numerator, int denominator) {
+    if (numerator <= 0) return 0;
+    return (numerator + denominator - 1) / denominator;
+}
 
-    int bestType  = ENTITY_NONE;
-    int bestId    = -1;
-    int bestStam  = -1;
-
+int findReadyActor(SharedState* state, int& outType, int& outId) {
     for (int i = 0; i < state->playerCount; i++) {
-        if (state->players[i].alive == 0) continue;
-        if (state->players[i].stamina >= PLAYER_MAX_STAMINA) {
-            if (state->players[i].stamina > bestStam) {
-                bestStam = state->players[i].stamina;
-                bestType = ENTITY_PLAYER;
-                bestId   = i;
-            }
+        if (state->players[i].alive == 1 && state->players[i].stamina >= PLAYER_MAX_STAMINA) {
+            outType = ENTITY_PLAYER;
+            outId = i;
+            return 1;
         }
     }
 
     for (int i = 0; i < state->enemyCount; i++) {
-        if (state->enemies[i].alive == 0) continue;
-        if (state->enemies[i].stamina >= ENEMY_MAX_STAMINA) {
-            if (state->enemies[i].stamina > bestStam) {
-                bestStam = state->enemies[i].stamina;
-                bestType = ENTITY_ENEMY;
-                bestId   = i;
-            }
+        if (state->enemies[i].alive == 1 && state->enemies[i].stamina >= ENEMY_MAX_STAMINA) {
+            outType = ENTITY_ENEMY;
+            outId = i;
+            return 1;
         }
-    }
-
-    if (bestType != ENTITY_NONE) {
-        outType = bestType;
-        outId   = bestId;
-        return 1;
     }
 
     return 0;
 }
 
-// ─────────────────────────────────────────────
-// Tick stamina for all alive entities by their speed
-// Must be called with stateLock held
-// ─────────────────────────────────────────────
-void tickStamina(SharedState* state) {
+int computeNextArrivalSeconds(SharedState* state) {
+    int best = 1000000;
+
     for (int i = 0; i < state->playerCount; i++) {
         if (state->players[i].alive == 0) continue;
-        state->players[i].stamina += state->players[i].speed;
+        int needed = PLAYER_MAX_STAMINA - state->players[i].stamina;
+        int seconds = ceilDivPositive(needed, state->players[i].speed);
+        if (seconds < best) best = seconds;
+    }
 
+    for (int i = 0; i < state->enemyCount; i++) {
+        if (state->enemies[i].alive == 0) continue;
+        int needed = ENEMY_MAX_STAMINA - state->enemies[i].stamina;
+        int seconds = ceilDivPositive(needed, state->enemies[i].speed);
+        if (seconds < best) best = seconds;
+    }
+
+    if (best == 1000000) return 1;
+    if (best < 0) return 0;
+    return best;
+}
+
+void advanceStaminaBy(SharedState* state, int seconds) {
+    if (seconds < 0) seconds = 0;
+
+    for (int i = 0; i < state->playerCount; i++) {
+        if (state->players[i].alive == 0) continue;
+        state->players[i].stamina += state->players[i].speed * seconds;
         if (state->players[i].stamina > PLAYER_MAX_STAMINA) {
             state->players[i].stamina = PLAYER_MAX_STAMINA;
         }
@@ -395,8 +413,7 @@ void tickStamina(SharedState* state) {
 
     for (int i = 0; i < state->enemyCount; i++) {
         if (state->enemies[i].alive == 0) continue;
-        state->enemies[i].stamina += state->enemies[i].speed;
-
+        state->enemies[i].stamina += state->enemies[i].speed * seconds;
         if (state->enemies[i].stamina > ENEMY_MAX_STAMINA) {
             state->enemies[i].stamina = ENEMY_MAX_STAMINA;
         }
@@ -487,49 +504,40 @@ void handlePlayerTurn(SharedState* state, int playerId) {
 void runGameLoop(SharedState* state) {
     cout << "[Arbiter] Game loop started." << endl;
 
-    // Stamina tick interval: 1 second
-    const int TICK_US = 1000000;
-
     while (true) {
+        int actorType = ENTITY_NONE;
+        int actorId = -1;
+        int sleepSeconds = 0;
+
         sem_wait(&state->stateLock);
 
-        int status = state->gameStatus;
-
-        if (status != GAME_RUNNING) {
+        if (state->gameStatus != GAME_RUNNING) {
             sem_post(&state->stateLock);
             break;
         }
 
-        // Tick stamina for all entities
-        tickStamina(state);
+        if (findReadyActor(state, actorType, actorId) == 0) {
+            sleepSeconds = computeNextArrivalSeconds(state);
+            sem_post(&state->stateLock);
 
-        // Find if anyone is ready to act
-        int actorType = ENTITY_NONE;
-        int actorId   = -1;
-        int found     = findNextActor(state, actorType, actorId);
+            sleep(sleepSeconds);
+
+            sem_wait(&state->stateLock);
+            if (state->gameStatus != GAME_RUNNING) {
+                sem_post(&state->stateLock);
+                break;
+            }
+            advanceStaminaBy(state, sleepSeconds);
+            findReadyActor(state, actorType, actorId);
+        }
 
         sem_post(&state->stateLock);
 
-        if (found == 1) {
-            if (actorType == ENTITY_PLAYER) {
-                handlePlayerTurn(state, actorId);
-            }
-            else if (actorType == ENTITY_ENEMY) {
-                handleEnemyTurn(state, actorId);
-            }
+        if (actorType == ENTITY_PLAYER) {
+            handlePlayerTurn(state, actorId);
         }
-        else {
-            // No one ready yet, sleep for one tick
-            usleep(TICK_US);
-        }
-
-        // Re-check game status after every action / tick
-        sem_wait(&state->stateLock);
-        status = state->gameStatus;
-        sem_post(&state->stateLock);
-
-        if (status != GAME_RUNNING) {
-            break;
+        else if (actorType == ENTITY_ENEMY) {
+            handleEnemyTurn(state, actorId);
         }
     }
 
@@ -545,6 +553,13 @@ void shutdownGame(SharedState* state) {
     // Wake up any threads blocked on actionDone so they can exit
     sem_post(&state->actionDone);
     sem_post(&state->actionReady);
+
+    // If HIP is running, terminate it
+    if (g_hipPid > 0) {
+        kill(g_hipPid, SIGTERM);
+        waitpid(g_hipPid, nullptr, 0);
+        cout << "[Arbiter] HIP terminated." << endl;
+    }
 
     // If ASP is running, terminate it
     if (g_aspPid > 0) {
@@ -595,6 +610,7 @@ int main() {
     state->partySize          = 0;
     state->gameInitialized    = 0;
     state->gameStatus         = GAME_RUNNING;
+    state->arbiterPid          = getpid();
     state->enemiesKilled      = 0;
     state->currentTurnType    = ENTITY_NONE;
     state->currentTurnId      = -1;
@@ -610,6 +626,21 @@ state->actionLogCount = 0;
 for (int i = 0; i < 5; i++) {
     state->actionLog[i][0] = '\0';
 }
+    g_hipPid = fork();
+
+    if (g_hipPid < 0) {
+        cerr << "[Arbiter] Failed to fork HIP." << endl;
+        shutdownGame(state);
+        return 1;
+    }
+
+    if (g_hipPid == 0) {
+        execl("./bin/hip", "./bin/hip", NULL);
+        cerr << "[HIP Child] execl failed." << endl;
+        exit(1);
+    }
+
+    cout << "[Arbiter] HIP forked with PID " << g_hipPid << endl;
     cout << "[Arbiter] Shared memory created. Waiting for HIP to select party size..." << endl;
 
     // ── Wait for HIP to set party size ──────────────────────────────
