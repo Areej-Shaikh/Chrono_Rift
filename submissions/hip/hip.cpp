@@ -355,10 +355,10 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
     sem_post(&state->stateLock);
 }
 
+
 int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
     int selected = 0;
-    const int optionCount = 2;
-    string options[optionCount] = { "Strike", "Skip" };
+    const int optionCount = 4;
 
     while (window.isOpen()) {
         sf::Event event;
@@ -375,23 +375,36 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
             }
 
             if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Left ||
-                    event.key.code == sf::Keyboard::Right ||
-                    event.key.code == sf::Keyboard::Up ||
-                    event.key.code == sf::Keyboard::Down) {
-                    selected = 1 - selected;
+                if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::Up) {
+                    selected--;
+
+                    if (selected < 0) {
+                        selected = optionCount - 1;
+                    }
+                }
+                else if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::Down) {
+                    selected++;
+
+                    if (selected >= optionCount) {
+                        selected = 0;
+                    }
                 }
                 else if (event.key.code == sf::Keyboard::Enter) {
-                    if (selected == 0) {
-                        return ACTION_STRIKE;
-                    }
-
+                    if (selected == 0) return ACTION_STRIKE;
+                    if (selected == 1) return ACTION_EXHAUST;
+                    if (selected == 2) return ACTION_HEAL;
                     return ACTION_SKIP;
                 }
                 else if (event.key.code == sf::Keyboard::Num1) {
                     return ACTION_STRIKE;
                 }
                 else if (event.key.code == sf::Keyboard::Num2) {
+                    return ACTION_EXHAUST;
+                }
+                else if (event.key.code == sf::Keyboard::Num3) {
+                    return ACTION_HEAL;
+                }
+                else if (event.key.code == sf::Keyboard::Num4) {
                     return ACTION_SKIP;
                 }
             }
@@ -405,17 +418,23 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
         menu.setCharacterSize(15);
         menu.setFillColor(sf::Color::White);
 
-        string line = "[1]Strike    [2]Skip";
+        string line;
 
         if (selected == 0) {
-            line = "> [1]Strike    [2]Skip";
+            line = "> [1]Strike    [2]Exhaust    [3]Heal    [4]Skip";
+        }
+        else if (selected == 1) {
+            line = "[1]Strike    > [2]Exhaust    [3]Heal    [4]Skip";
+        }
+        else if (selected == 2) {
+            line = "[1]Strike    [2]Exhaust    > [3]Heal    [4]Skip";
         }
         else {
-            line = "[1]Strike    > [2]Skip";
+            line = "[1]Strike    [2]Exhaust    [3]Heal    > [4]Skip";
         }
 
         menu.setString(line);
-        menu.setPosition(35, 700);
+        menu.setPosition(35, 675);
         window.draw(menu);
 
         window.display();
@@ -524,7 +543,7 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
         sem_post(&state->stateLock);
 
         targetText.setString(line);
-        targetText.setPosition(35, 730);
+       targetText.setPosition(35, 705);
         window.draw(targetText);
 
         window.display();
@@ -546,7 +565,7 @@ void handlePlayerTurnInput(sf::RenderWindow& window, sf::Font& font, SharedState
     int targetType = ENTITY_NONE;
     int targetId = -1;
 
-    if (actionType == ACTION_STRIKE) {
+  if (actionType == ACTION_STRIKE || actionType == ACTION_EXHAUST) {
         targetId = showEnemyTargetMenuOnBattleScreen(window, font, state);
 
         if (targetId == -1) {

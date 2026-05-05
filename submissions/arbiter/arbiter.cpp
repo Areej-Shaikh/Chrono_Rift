@@ -174,7 +174,7 @@ void processAction(SharedState* state) {
     sem_wait(&state->stateLock);
 
     ActionRequest req = state->request;
-    state->request.ready = 0;   // consume
+    state->request.ready = 0;
 
     if (req.entityType == ENTITY_PLAYER) {
         int pid = req.entityId;
@@ -185,16 +185,18 @@ void processAction(SharedState* state) {
             if (tid >= 0 && tid < state->enemyCount && state->enemies[tid].alive == 1) {
                 int dmg = state->players[pid].damage;
                 state->enemies[tid].hp -= dmg;
-char logText[100];
-sprintf(logText, "Player %d struck Enemy %d for %d damage", pid, tid, dmg);
-addActionLog(state, logText);
+
+                char logText[100];
+                sprintf(logText, "Player %d struck Enemy %d for %d damage", pid, tid, dmg);
+                addActionLog(state, logText);
+
                 cout << "[Arbiter] Player " << pid
                      << " struck Enemy " << tid
                      << " for " << dmg << " dmg."
                      << " Enemy HP now: " << state->enemies[tid].hp << endl;
 
                 if (state->enemies[tid].hp <= 0) {
-                    state->enemies[tid].hp    = 0;
+                    state->enemies[tid].hp = 0;
                     state->enemies[tid].alive = 0;
                     state->enemies[tid].stamina = 0;
                     state->enemiesKilled++;
@@ -204,15 +206,56 @@ addActionLog(state, logText);
                 }
             }
         }
-        else if (req.actionType == ACTION_SKIP) {
-            // Skip: stamina set to 50 (handled below in stamina depletion)
+        else if (req.actionType == ACTION_EXHAUST) {
+            int tid = req.targetId;
+
+            if (tid >= 0 && tid < state->enemyCount && state->enemies[tid].alive == 1) {
+                int reduce = state->players[pid].damage;
+                state->enemies[tid].stamina -= reduce;
+
+                if (state->enemies[tid].stamina < 0) {
+                    state->enemies[tid].stamina = 0;
+                }
+
+                char logText[100];
+                sprintf(logText, "Player %d exhausted Enemy %d by %d stamina", pid, tid, reduce);
+                addActionLog(state, logText);
+
+                cout << "[Arbiter] Player " << pid
+                     << " exhausted Enemy " << tid
+                     << " by " << reduce << " stamina."
+                     << " Enemy stamina now: " << state->enemies[tid].stamina << endl;
+            }
+        }
+        else if (req.actionType == ACTION_HEAL) {
+            int healAmount = state->players[pid].maxHp / 10;
+
+            if (healAmount <= 0) {
+                healAmount = 1;
+            }
+
+            state->players[pid].hp += healAmount;
+
+            if (state->players[pid].hp > state->players[pid].maxHp) {
+                state->players[pid].hp = state->players[pid].maxHp;
+            }
+
             char logText[100];
-sprintf(logText, "Player %d skipped turn", pid);
-addActionLog(state, logText);
+            sprintf(logText, "Player %d healed by %d HP", pid, healAmount);
+            addActionLog(state, logText);
+
+            cout << "[Arbiter] Player " << pid
+                 << " healed by " << healAmount
+                 << " HP. Current HP: " << state->players[pid].hp << endl;
+        }
+        else if (req.actionType == ACTION_SKIP) {
+            char logText[100];
+            sprintf(logText, "Player %d skipped turn", pid);
+            addActionLog(state, logText);
+
             cout << "[Arbiter] Player " << pid << " skipped." << endl;
         }
 
-        // Deplete acting player's stamina
         if (req.actionType == ACTION_SKIP) {
             state->players[pid].stamina = 50;
         }
@@ -229,20 +272,22 @@ addActionLog(state, logText);
             if (tid >= 0 && tid < state->playerCount && state->players[tid].alive == 1) {
                 int dmg = state->enemies[eid].damage;
                 state->players[tid].hp -= dmg;
-state->lastNpcActionEnemyId = eid;
-state->lastNpcActionType = ACTION_STRIKE;
-state->lastNpcTargetPlayerId = tid;
 
-char logText[100];
-sprintf(logText, "Enemy %d struck Player %d for %d damage", eid, tid, dmg);
-addActionLog(state, logText);
+                state->lastNpcActionEnemyId = eid;
+                state->lastNpcActionType = ACTION_STRIKE;
+                state->lastNpcTargetPlayerId = tid;
+
+                char logText[100];
+                sprintf(logText, "Enemy %d struck Player %d for %d damage", eid, tid, dmg);
+                addActionLog(state, logText);
+
                 cout << "[Arbiter] Enemy " << eid
                      << " struck Player " << tid
                      << " for " << dmg << " dmg."
                      << " Player HP now: " << state->players[tid].hp << endl;
 
                 if (state->players[tid].hp <= 0) {
-                    state->players[tid].hp    = 0;
+                    state->players[tid].hp = 0;
                     state->players[tid].alive = 0;
                     state->players[tid].stamina = 0;
 
@@ -252,16 +297,16 @@ addActionLog(state, logText);
         }
         else {
             state->lastNpcActionEnemyId = eid;
-state->lastNpcActionType = ACTION_SKIP;
-state->lastNpcTargetPlayerId = -1;
+            state->lastNpcActionType = ACTION_SKIP;
+            state->lastNpcTargetPlayerId = -1;
 
-char logText[100];
-sprintf(logText, "Enemy %d skipped turn", eid);
-addActionLog(state, logText);
+            char logText[100];
+            sprintf(logText, "Enemy %d skipped turn", eid);
+            addActionLog(state, logText);
+
             cout << "[Arbiter] Enemy " << eid << " skipped." << endl;
         }
 
-        // Deplete acting enemy's stamina
         if (req.actionType == ACTION_SKIP) {
             state->enemies[eid].stamina = 50;
         }
@@ -270,7 +315,6 @@ addActionLog(state, logText);
         }
     }
 
-    // Check win/lose after processing
     int status = checkGameOver(state);
     if (status != GAME_RUNNING) {
         state->gameStatus = status;
@@ -283,13 +327,10 @@ addActionLog(state, logText);
         }
     }
 
-    // Reset turn
     state->currentTurnType = ENTITY_NONE;
-    state->currentTurnId   = -1;
+    state->currentTurnId = -1;
 
     sem_post(&state->stateLock);
-
-    // Notify acting entity that their action was processed
     sem_post(&state->actionDone);
 }
 
