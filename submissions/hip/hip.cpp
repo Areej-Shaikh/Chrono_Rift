@@ -355,7 +355,6 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
     sem_post(&state->stateLock);
 }
 
-
 int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
     int selected = 0;
     const int optionCount = 4;
@@ -442,7 +441,6 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
 
     return ACTION_SKIP;
 }
-
 int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
     int selected = 0;
 
