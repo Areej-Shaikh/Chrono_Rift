@@ -7,6 +7,57 @@
 #include <unistd.h>
 
 using namespace std;
+
+
+void centerText(sf::Text& text, float x, float y, float w, float h) {
+    sf::FloatRect bounds = text.getLocalBounds();
+    text.setPosition(
+        x + (w - bounds.width) / 2 - bounds.left,
+        y + (h - bounds.height) / 2 - bounds.top
+    );
+}
+
+void drawBox(sf::RenderWindow& window, float x, float y, float w, float h, string title, sf::Font& font) {
+    sf::RectangleShape box;
+    box.setSize(sf::Vector2f(w, h));
+    box.setPosition(x, y);
+    box.setFillColor(sf::Color::Black);
+    box.setOutlineThickness(1);
+    box.setOutlineColor(sf::Color(210, 210, 210));
+    window.draw(box);
+
+    sf::Text titleText;
+    titleText.setFont(font);
+    titleText.setString("[ " + title + " ]");
+    titleText.setCharacterSize(15);
+    titleText.setFillColor(sf::Color::White);
+    titleText.setPosition(x + 18, y - 12);
+    window.draw(titleText);
+}
+
+sf::RectangleShape makeBar(float x, float y, float w, float h, int value, int maxValue, sf::Color color) {
+    if (maxValue <= 0) {
+        maxValue = 1;
+    }
+
+    float percent = (float)value / maxValue;
+
+    if (percent < 0) {
+        percent = 0;
+    }
+
+    if (percent > 1) {
+        percent = 1;
+    }
+
+    sf::RectangleShape bar;
+    bar.setSize(sf::Vector2f(w * percent, h));
+    bar.setPosition(x, y);
+    bar.setFillColor(color);
+
+    return bar;
+}
+
 int selectPartySize(sf::RenderWindow& window, sf::Font& font) {
     int selected = 0;
 
@@ -27,7 +78,6 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font) {
                         selected = 3;
                     }
                 }
-
                 else if (event.key.code == sf::Keyboard::Down) {
                     selected++;
 
@@ -35,84 +85,94 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font) {
                         selected = 0;
                     }
                 }
-
                 else if (event.key.code == sf::Keyboard::Enter) {
                     return selected + 1;
                 }
-
                 else if (event.key.code == sf::Keyboard::Num1) {
                     return 1;
                 }
-
                 else if (event.key.code == sf::Keyboard::Num2) {
                     return 2;
                 }
-
                 else if (event.key.code == sf::Keyboard::Num3) {
                     return 3;
                 }
-
                 else if (event.key.code == sf::Keyboard::Num4) {
                     return 4;
                 }
             }
         }
 
-        window.clear(sf::Color(20, 20, 30));
+        window.clear(sf::Color::Black);
+
+        float winW = (float)window.getSize().x;
+        float panelW = 520;
+        float panelH = 430;
+        float panelX = (winW - panelW) / 2;
+        float panelY = 120;
+
+        drawBox(window, panelX, panelY, panelW, panelH, "CHRONO RIFT", font);
 
         sf::Text title;
         title.setFont(font);
-        title.setString("Chrono Rift");
-        title.setCharacterSize(38);
-        title.setFillColor(sf::Color::White);
-        title.setPosition(185, 35);
+        title.setString("CHRONO RIFT");
+        title.setCharacterSize(32);
+        title.setFillColor(sf::Color(80, 210, 255));
+        centerText(title, panelX, panelY + 35, panelW, 45);
         window.draw(title);
 
         sf::Text subtitle;
         subtitle.setFont(font);
-        subtitle.setString("Select Player Party Size");
-        subtitle.setCharacterSize(24);
+        subtitle.setString("SELECT PLAYER PARTY SIZE");
+        subtitle.setCharacterSize(19);
         subtitle.setFillColor(sf::Color::White);
-        subtitle.setPosition(160, 90);
+        centerText(subtitle, panelX, panelY + 85, panelW, 35);
         window.draw(subtitle);
 
         for (int i = 0; i < 4; i++) {
-            sf::RectangleShape box;
-            box.setSize(sf::Vector2f(280, 45));
-            box.setPosition(160, 150 + i * 60);
+            float boxW = 320;
+            float boxH = 45;
+            float boxX = panelX + (panelW - boxW) / 2;
+            float boxY = panelY + 150 + i * 60;
+
+            sf::RectangleShape optionBox;
+            optionBox.setSize(sf::Vector2f(boxW, boxH));
+            optionBox.setPosition(boxX, boxY);
+            optionBox.setOutlineThickness(1);
 
             if (i == selected) {
-                box.setFillColor(sf::Color(80, 120, 220));
+                optionBox.setFillColor(sf::Color(35, 75, 95));
+                optionBox.setOutlineColor(sf::Color(80, 210, 255));
             }
             else {
-                box.setFillColor(sf::Color(55, 55, 75));
+                optionBox.setFillColor(sf::Color(15, 15, 20));
+                optionBox.setOutlineColor(sf::Color(120, 120, 120));
             }
 
-            window.draw(box);
+            window.draw(optionBox);
 
             sf::Text option;
             option.setFont(font);
 
-            string text = to_string(i + 1) + " Player";
+            string text = to_string(i + 1) + " PLAYER";
 
             if (i + 1 > 1) {
-                text += "s";
+                text += "S";
             }
 
             option.setString(text);
-            option.setCharacterSize(22);
+            option.setCharacterSize(18);
             option.setFillColor(sf::Color::White);
-            option.setPosition(245, 158 + i * 60);
-
+            centerText(option, boxX, boxY, boxW, boxH);
             window.draw(option);
         }
 
         sf::Text help;
         help.setFont(font);
-        help.setString("Use Up/Down and Enter");
-        help.setCharacterSize(16);
+        help.setString("Use UP / DOWN and ENTER");
+        help.setCharacterSize(15);
         help.setFillColor(sf::Color(180, 180, 180));
-        help.setPosition(205, 405);
+        centerText(help, panelX, panelY + 375, panelW, 30);
         window.draw(help);
 
         window.display();
@@ -124,134 +184,172 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font) {
 void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
     sem_wait(&state->stateLock);
 
-    // Title
-    sf::Text title;
-    title.setFont(font);
-    title.setString("Chrono Rift Battle View");
-    title.setCharacterSize(28);
-    title.setFillColor(sf::Color::White);
-    title.setPosition(210, 20);
-    window.draw(title);
+    float winW = (float)window.getSize().x;
 
-    // Player heading
-    sf::Text playerHeading;
-    playerHeading.setFont(font);
-    playerHeading.setString("Players");
-    playerHeading.setCharacterSize(22);
-    playerHeading.setFillColor(sf::Color::White);
-    playerHeading.setPosition(80, 70);
-    window.draw(playerHeading);
+    sf::Text header;
+    header.setFont(font);
+    header.setString("CHRONO RIFT  |  Q=Quit  |  KILLS: 0/10");
+    header.setCharacterSize(15);
+    header.setFillColor(sf::Color(80, 210, 255));
 
-    // Enemy heading
-    sf::Text enemyHeading;
-    enemyHeading.setFont(font);
-    enemyHeading.setString("Enemies");
-    enemyHeading.setCharacterSize(22);
-    enemyHeading.setFillColor(sf::Color::White);
-    enemyHeading.setPosition(510, 70);
-    window.draw(enemyHeading);
+    sf::RectangleShape headerBox;
+    headerBox.setSize(sf::Vector2f(winW - 40, 35));
+    headerBox.setPosition(20, 15);
+    headerBox.setFillColor(sf::Color::Black);
+    headerBox.setOutlineThickness(1);
+    headerBox.setOutlineColor(sf::Color(80, 210, 255));
+    window.draw(headerBox);
 
-    // Draw players on left
+    header.setPosition(45, 24);
+    window.draw(header);
+
+    float partyX = 35;
+    float partyY = 80;
+    float partyW = 500;
+    float partyH = 250;
+
+    float enemyX = winW - 535;
+    float enemyY = 80;
+    float enemyW = 500;
+    float enemyH = 250;
+
+    drawBox(window, partyX, partyY, partyW, partyH, "PARTY", font);
+    drawBox(window, enemyX, enemyY, enemyW, enemyH, "VOID WRAITHS", font);
+
     for (int i = 0; i < state->playerCount; i++) {
-        float x = 60;
-        float y = 120 + i * 75;
+        float y = partyY + 45 + i * 45;
 
-        sf::RectangleShape playerBox;
-        playerBox.setSize(sf::Vector2f(170, 55));
-        playerBox.setPosition(x, y);
+        sf::Text label;
+        label.setFont(font);
+        label.setCharacterSize(15);
+        label.setFillColor(sf::Color::White);
 
-        if (state->players[i].alive == 1) {
-            playerBox.setFillColor(sf::Color(60, 130, 220)); // blue
-        }
-        else {
-            playerBox.setFillColor(sf::Color(70, 70, 70)); // dead gray
-        }
+        string playerName = "P" + to_string(i + 1);
+        string line = playerName + "  HP:[";
+        label.setString(line);
+        label.setPosition(partyX + 25, y);
+        window.draw(label);
+
+        sf::RectangleShape hpBack;
+        hpBack.setSize(sf::Vector2f(140, 12));
+        hpBack.setPosition(partyX + 100, y + 4);
+        hpBack.setFillColor(sf::Color(25, 25, 25));
+        hpBack.setOutlineThickness(1);
+        hpBack.setOutlineColor(sf::Color(80, 180, 120));
+        window.draw(hpBack);
+
+        sf::RectangleShape hpBar = makeBar(
+            partyX + 101, y + 5, 138, 10,
+            state->players[i].hp,
+            state->players[i].maxHp,
+            sf::Color(50, 210, 120)
+        );
+        window.draw(hpBar);
+
+        sf::Text stamina;
+        stamina.setFont(font);
+        stamina.setCharacterSize(15);
+        stamina.setFillColor(sf::Color(230, 210, 100));
+        stamina.setString("]  ST:[" + to_string(state->players[i].stamina) + "]");
+        stamina.setPosition(partyX + 250, y);
+        window.draw(stamina);
 
         if (state->currentTurnType == ENTITY_PLAYER && state->currentTurnId == i) {
-            playerBox.setOutlineThickness(4);
-            playerBox.setOutlineColor(sf::Color::Yellow);
+            sf::RectangleShape active;
+            active.setSize(sf::Vector2f(partyW - 40, 30));
+            active.setPosition(partyX + 20, y - 6);
+            active.setFillColor(sf::Color::Transparent);
+            active.setOutlineThickness(1);
+            active.setOutlineColor(sf::Color::Yellow);
+            window.draw(active);
         }
-        else {
-            playerBox.setOutlineThickness(2);
-            playerBox.setOutlineColor(sf::Color::White);
-        }
-
-        window.draw(playerBox);
-
-        sf::Text playerText;
-        playerText.setFont(font);
-        playerText.setCharacterSize(15);
-        playerText.setFillColor(sf::Color::White);
-
-        string text = "Player " + to_string(i)
-            + "\nHP: " + to_string(state->players[i].hp)
-            + "/" + to_string(state->players[i].maxHp)
-            + "  ST: " + to_string(state->players[i].stamina);
-
-        playerText.setString(text);
-        playerText.setPosition(x + 10, y + 8);
-        window.draw(playerText);
     }
 
-    // Draw enemies on right
     for (int i = 0; i < state->enemyCount; i++) {
-        float x = 470;
-        float y = 120 + i * 55;
+        float y = enemyY + 45 + i * 32;
 
-        sf::RectangleShape enemyBox;
-        enemyBox.setSize(sf::Vector2f(170, 45));
-        enemyBox.setPosition(x, y);
+        sf::Text enemyLabel;
+        enemyLabel.setFont(font);
+        enemyLabel.setCharacterSize(14);
+        enemyLabel.setFillColor(sf::Color::White);
+        enemyLabel.setString("NPC" + to_string(i + 1) + ":[");
+        enemyLabel.setPosition(enemyX + 25, y);
+        window.draw(enemyLabel);
 
-        if (state->enemies[i].alive == 1) {
-            enemyBox.setFillColor(sf::Color(190, 70, 70)); // red
-        }
-        else {
-            enemyBox.setFillColor(sf::Color(70, 70, 70)); // dead gray
-        }
+        sf::RectangleShape hpBack;
+        hpBack.setSize(sf::Vector2f(150, 12));
+        hpBack.setPosition(enemyX + 95, y + 4);
+        hpBack.setFillColor(sf::Color(25, 25, 25));
+        hpBack.setOutlineThickness(1);
+        hpBack.setOutlineColor(sf::Color(230, 90, 90));
+        window.draw(hpBack);
+
+        sf::RectangleShape hpBar = makeBar(
+            enemyX + 96, y + 5, 148, 10,
+            state->enemies[i].hp,
+            state->enemies[i].maxHp,
+            sf::Color(230, 80, 80)
+        );
+        window.draw(hpBar);
+
+        sf::Text hpText;
+        hpText.setFont(font);
+        hpText.setCharacterSize(14);
+        hpText.setFillColor(sf::Color::White);
+        hpText.setString("] " + to_string(state->enemies[i].hp) + "HP");
+        hpText.setPosition(enemyX + 255, y);
+        window.draw(hpText);
 
         if (state->currentTurnType == ENTITY_ENEMY && state->currentTurnId == i) {
-            enemyBox.setOutlineThickness(4);
-            enemyBox.setOutlineColor(sf::Color::Yellow);
+            sf::RectangleShape active;
+            active.setSize(sf::Vector2f(enemyW - 40, 26));
+            active.setPosition(enemyX + 20, y - 5);
+            active.setFillColor(sf::Color::Transparent);
+            active.setOutlineThickness(1);
+            active.setOutlineColor(sf::Color::Yellow);
+            window.draw(active);
         }
-        else {
-            enemyBox.setOutlineThickness(2);
-            enemyBox.setOutlineColor(sf::Color::White);
-        }
-
-        window.draw(enemyBox);
-
-        sf::Text enemyText;
-        enemyText.setFont(font);
-        enemyText.setCharacterSize(14);
-        enemyText.setFillColor(sf::Color::White);
-
-        string text = "Enemy " + to_string(i)
-            + "  HP: " + to_string(state->enemies[i].hp)
-            + "/" + to_string(state->enemies[i].maxHp)
-            + "\nST: " + to_string(state->enemies[i].stamina);
-
-        enemyText.setString(text);
-        enemyText.setPosition(x + 10, y + 6);
-        window.draw(enemyText);
     }
 
-    // Current turn text
+    float logX = 35;
+    float logY = 505;
+    float logW = winW - 70;
+    float logH = 120;
+
+    drawBox(window, logX, logY, logW, logH, "ACTION LOG", font);
+
+    string logs = "";
+
+    for (int i = 0; i < state->actionLogCount; i++) {
+        logs += "> ";
+        logs += string(state->actionLog[i]);
+        logs += "\n";
+    }
+
+    sf::Text logText;
+    logText.setFont(font);
+    logText.setCharacterSize(14);
+    logText.setFillColor(sf::Color::White);
+    logText.setString(logs);
+    logText.setPosition(logX + 20, logY + 35);
+    window.draw(logText);
+
     sf::Text turnText;
     turnText.setFont(font);
-    turnText.setCharacterSize(18);
+    turnText.setCharacterSize(15);
     turnText.setFillColor(sf::Color::White);
-    turnText.setPosition(250, 390);
 
     if (state->currentTurnType == ENTITY_PLAYER) {
-        turnText.setString("Current Turn: Player " + to_string(state->currentTurnId));
+        turnText.setString("== P" + to_string(state->currentTurnId + 1) + " TURN ==");
     }
     else if (state->currentTurnType == ENTITY_ENEMY) {
-        turnText.setString("Current Turn: Enemy " + to_string(state->currentTurnId));
+        turnText.setString("== NPC" + to_string(state->currentTurnId + 1) + " TURN ==");
     }
     else {
-        turnText.setString("Current Turn: None");
+        turnText.setString("== WAITING ==");
     }
 
+    turnText.setPosition(35, 665);
     window.draw(turnText);
 
     sem_post(&state->stateLock);
@@ -260,11 +358,7 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
 int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
     int selected = 0;
     const int optionCount = 2;
-
-    string options[optionCount] = {
-        "Strike",
-        "Skip"
-    };
+    string options[optionCount] = { "Strike", "Skip" };
 
     while (window.isOpen()) {
         sf::Event event;
@@ -281,7 +375,9 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
             }
 
             if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Up ||
+                if (event.key.code == sf::Keyboard::Left ||
+                    event.key.code == sf::Keyboard::Right ||
+                    event.key.code == sf::Keyboard::Up ||
                     event.key.code == sf::Keyboard::Down) {
                     selected = 1 - selected;
                 }
@@ -299,74 +395,28 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
                     return ACTION_SKIP;
                 }
             }
-
-            if (event.type == sf::Event::MouseButtonPressed) {
-                if (event.mouseButton.button == sf::Mouse::Left) {
-                    int mouseX = event.mouseButton.x;
-                    int mouseY = event.mouseButton.y;
-
-                    for (int i = 0; i < optionCount; i++) {
-                        int boxX = 260;
-                        int boxY = 430 + i * 45;
-                        int boxW = 180;
-                        int boxH = 35;
-
-                        if (mouseX >= boxX && mouseX <= boxX + boxW &&
-                            mouseY >= boxY && mouseY <= boxY + boxH) {
-
-                            if (i == 0) {
-                                return ACTION_STRIKE;
-                            }
-
-                            return ACTION_SKIP;
-                        }
-                    }
-                }
-            }
         }
 
-        window.clear(sf::Color(15, 15, 25));
-
+        window.clear(sf::Color::Black);
         drawBattleView(window, font, state);
 
-        sf::RectangleShape panel;
-        panel.setSize(sf::Vector2f(260, 150));
-        panel.setPosition(220, 380);
-        panel.setFillColor(sf::Color(35, 35, 55));
-        panel.setOutlineThickness(2);
-        panel.setOutlineColor(sf::Color::White);
-        window.draw(panel);
+        sf::Text menu;
+        menu.setFont(font);
+        menu.setCharacterSize(15);
+        menu.setFillColor(sf::Color::White);
 
-        sf::Text title;
-        title.setFont(font);
-        title.setString("Player " + to_string(playerId) + " Action");
-        title.setCharacterSize(18);
-        title.setFillColor(sf::Color::White);
-        title.setPosition(260, 395);
-        window.draw(title);
+        string line = "[1]Strike    [2]Skip";
 
-        for (int i = 0; i < optionCount; i++) {
-            sf::RectangleShape box;
-            box.setSize(sf::Vector2f(180, 35));
-            box.setPosition(260, 430 + i * 45);
-
-            if (i == selected) {
-                box.setFillColor(sf::Color(80, 120, 220));
-            }
-            else {
-                box.setFillColor(sf::Color(70, 70, 90));
-            }
-
-            window.draw(box);
-
-            sf::Text option;
-            option.setFont(font);
-            option.setString(to_string(i + 1) + ". " + options[i]);
-            option.setCharacterSize(16);
-            option.setFillColor(sf::Color::White);
-            option.setPosition(285, 437 + i * 45);
-            window.draw(option);
+        if (selected == 0) {
+            line = "> [1]Strike    [2]Skip";
         }
+        else {
+            line = "[1]Strike    > [2]Skip";
+        }
+
+        menu.setString(line);
+        menu.setPosition(35, 700);
+        window.draw(menu);
 
         window.display();
     }
@@ -445,94 +495,43 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
                     }
                 }
             }
-
-            if (event.type == sf::Event::MouseButtonPressed) {
-                if (event.mouseButton.button == sf::Mouse::Left) {
-                    int mouseX = event.mouseButton.x;
-                    int mouseY = event.mouseButton.y;
-
-                    sem_wait(&state->stateLock);
-
-                    for (int i = 0; i < state->enemyCount; i++) {
-                        int boxX = 235;
-                        int boxY = 330 + i * 32;
-                        int boxW = 230;
-                        int boxH = 28;
-
-                        if (mouseX >= boxX && mouseX <= boxX + boxW &&
-                            mouseY >= boxY && mouseY <= boxY + boxH &&
-                            state->enemies[i].alive == 1) {
-
-                            sem_post(&state->stateLock);
-                            return i;
-                        }
-                    }
-
-                    sem_post(&state->stateLock);
-                }
-            }
         }
 
-        window.clear(sf::Color(15, 15, 25));
-
+        window.clear(sf::Color::Black);
         drawBattleView(window, font, state);
 
-        sf::RectangleShape panel;
-        panel.setSize(sf::Vector2f(300, 260));
-        panel.setPosition(200, 280);
-        panel.setFillColor(sf::Color(35, 35, 55));
-        panel.setOutlineThickness(2);
-        panel.setOutlineColor(sf::Color::White);
-        window.draw(panel);
+        sf::Text targetText;
+        targetText.setFont(font);
+        targetText.setCharacterSize(15);
+        targetText.setFillColor(sf::Color::White);
 
-        sf::Text title;
-        title.setFont(font);
-        title.setString("Select Enemy Target");
-        title.setCharacterSize(18);
-        title.setFillColor(sf::Color::White);
-        title.setPosition(255, 295);
-        window.draw(title);
+        string line = "TARGET: ";
 
         sem_wait(&state->stateLock);
 
         for (int i = 0; i < state->enemyCount; i++) {
-            sf::RectangleShape box;
-            box.setSize(sf::Vector2f(230, 28));
-            box.setPosition(235, 330 + i * 32);
-
-            if (state->enemies[i].alive == 0) {
-                box.setFillColor(sf::Color(60, 60, 60));
-            }
-            else if (i == selected) {
-                box.setFillColor(sf::Color(180, 80, 80));
-            }
-            else {
-                box.setFillColor(sf::Color(70, 70, 90));
+            if (i == selected) {
+                line += "> ";
             }
 
-            window.draw(box);
-
-            string line = "Enemy " + to_string(i)
-                + " HP: " + to_string(state->enemies[i].hp)
-                + "/" + to_string(state->enemies[i].maxHp);
-
-            sf::Text enemyText;
-            enemyText.setFont(font);
-            enemyText.setString(line);
-            enemyText.setCharacterSize(13);
-            enemyText.setFillColor(sf::Color::White);
-            enemyText.setPosition(245, 335 + i * 32);
-            window.draw(enemyText);
+            line += "[NPC";
+            line += to_string(i + 1);
+            line += " ";
+            line += to_string(state->enemies[i].hp);
+            line += "HP]   ";
         }
 
         sem_post(&state->stateLock);
+
+        targetText.setString(line);
+        targetText.setPosition(35, 730);
+        window.draw(targetText);
 
         window.display();
     }
 
     return -1;
 }
-
 void handlePlayerTurnInput(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
     sem_wait(&state->stateLock);
 
@@ -576,7 +575,7 @@ int main() {
     }
 
     cout << "HIP attached to shared memory." << endl;
-sf::RenderWindow window(sf::VideoMode(700, 500), "Chrono Rift - HIP");
+sf::RenderWindow window(sf::VideoMode(1100, 800), "Chrono Rift - HIP");
 
 sf::Font font;
 

@@ -82,6 +82,12 @@ struct SharedState {
 
     int enemiesKilled;
     int gameStatus;
+    int npcThreadAlive[MAX_ENEMIES];
+int lastNpcActionEnemyId;
+int lastNpcActionType;
+int lastNpcTargetPlayerId;
+char actionLog[5][100];
+int actionLogCount;
 };
 
 #endif
