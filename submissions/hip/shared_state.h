@@ -16,6 +16,8 @@ const int ENTITY_ENEMY = 2;
 const int ACTION_NONE = 0;
 const int ACTION_STRIKE = 1;
 const int ACTION_SKIP = 2;
+const int ACTION_EXHAUST = 3;
+const int ACTION_HEAL = 4;
 
 const int GAME_RUNNING = 0;
 const int GAME_WIN = 1;
