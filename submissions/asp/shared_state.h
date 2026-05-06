@@ -59,6 +59,7 @@ struct Player {
     int stamina;
     int alive;
     PlayerInventory inventory;
+  int stunned;
 };
 
 struct Enemy {
@@ -69,6 +70,7 @@ struct Enemy {
     int speed;
     int stamina;
     int alive;
+    int stunned;
 };
 
 struct ActionRequest {

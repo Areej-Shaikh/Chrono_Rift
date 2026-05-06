@@ -3,6 +3,7 @@
 #include <cstring>
 #include <unistd.h>
 #include <csignal>
+#include <pthread.h>
 #include <semaphore.h>
 #include <sys/wait.h>
 #include <sys/types.h>
@@ -32,6 +33,7 @@ static SharedState* g_state = nullptr;
 static pid_t        g_aspPid = -1;   // PID of Automated Strategic Process
 static pid_t        g_hipPid = -1;   // PID of Human Interfacing Process
 void addActionLog(SharedState* state, const char* text);
+static int g_staminaThreadRunning = 1;
 // ─────────────────────────────────────────────
 // SIGTERM handler – player chose to quit
 // ─────────────────────────────────────────────
@@ -403,6 +405,9 @@ void processAction(SharedState* state) {
             if (tid >= 0 && tid < state->enemyCount && state->enemies[tid].alive == 1) {
                 int dmg = state->players[pid].damage;
                 state->enemies[tid].hp -= dmg;
+                kill(g_aspPid, SIGUSR1);
+
+addActionLog(state, "Strategic Process stunned for 3 seconds");
 
                 char logText[100];
                 sprintf(logText, "Player %d struck Enemy %d for %d damage", pid, tid, dmg);
@@ -766,13 +771,11 @@ void handlePlayerTurn(SharedState* state, int playerId) {
 // ─────────────────────────────────────────────
 // Main scheduling loop
 // ─────────────────────────────────────────────
-void runGameLoop(SharedState* state) {
-    cout << "[Arbiter] Game loop started." << endl;
+void* staminaTickerThread(void* arg) {
+    SharedState* state = (SharedState*)arg;
 
-    while (true) {
-        int actorType = ENTITY_NONE;
-        int actorId = -1;
-        int sleepSeconds = 0;
+    while (g_staminaThreadRunning == 1) {
+        sleep(1);
 
         sem_wait(&state->stateLock);
 
@@ -781,18 +784,49 @@ void runGameLoop(SharedState* state) {
             break;
         }
 
-        if (findReadyActor(state, actorType, actorId) == 0) {
-            sleepSeconds = computeNextArrivalSeconds(state);
-            sem_post(&state->stateLock);
+        for (int i = 0; i < state->playerCount; i++) {
+            if (state->players[i].alive == 1) {
+                state->players[i].stamina += state->players[i].speed;
 
-            sleep(sleepSeconds);
-
-            sem_wait(&state->stateLock);
-            if (state->gameStatus != GAME_RUNNING) {
-                sem_post(&state->stateLock);
-                break;
+                if (state->players[i].stamina > PLAYER_MAX_STAMINA) {
+                    state->players[i].stamina = PLAYER_MAX_STAMINA;
+                }
             }
-            advanceStaminaBy(state, sleepSeconds);
+        }
+
+        for (int i = 0; i < state->enemyCount; i++) {
+            if (state->enemies[i].alive == 1) {
+                state->enemies[i].stamina += state->enemies[i].speed;
+
+                if (state->enemies[i].stamina > ENEMY_MAX_STAMINA) {
+                    state->enemies[i].stamina = ENEMY_MAX_STAMINA;
+                }
+            }
+        }
+
+        sem_post(&state->stateLock);
+    }
+
+    return NULL;
+}
+void runGameLoop(SharedState* state) {
+    cout << "[Arbiter] Game loop started." << endl;
+
+    pthread_t staminaThread;
+    pthread_create(&staminaThread, NULL, staminaTickerThread, state);
+
+    while (true) {
+        int actorType = ENTITY_NONE;
+        int actorId = -1;
+
+        sem_wait(&state->stateLock);
+
+        if (state->gameStatus != GAME_RUNNING) {
+            sem_post(&state->stateLock);
+            break;
+        }
+
+        if (state->currentTurnType == ENTITY_NONE) {
             findReadyActor(state, actorType, actorId);
         }
 
@@ -804,11 +838,16 @@ void runGameLoop(SharedState* state) {
         else if (actorType == ENTITY_ENEMY) {
             handleEnemyTurn(state, actorId);
         }
+        else {
+            usleep(50000);
+        }
     }
+
+    g_staminaThreadRunning = 0;
+    pthread_join(staminaThread, NULL);
 
     cout << "[Arbiter] Game loop ended. Status: " << g_state->gameStatus << endl;
 }
-
 // ─────────────────────────────────────────────
 // Graceful shutdown
 // ─────────────────────────────────────────────

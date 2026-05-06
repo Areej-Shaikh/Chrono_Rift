@@ -5,13 +5,14 @@
 #include <ctime>
 #include <signal.h>
 
+
 #include "shared_memory.h"
 #include "shared_state.h"
 
 using namespace std;
 
 SharedState* state = NULL;
-
+int aspStunned = 0;
 int chooseAlivePlayer() {
     int alivePlayers[MAX_PLAYERS];
     int count = 0;
@@ -78,11 +79,23 @@ void submitEnemyMove(int enemyId) {
     sem_post(&state->stateLock);
     sem_post(&state->actionReady);
 }
+void stunHandler(int sig) {
+    aspStunned = 1;
+    alarm(3);
+    cout << "[ASP] STUN received. Pausing enemies for 3 seconds." << endl;
+}
 
+void stunRecoveryHandler(int sig) {
+    aspStunned = 0;
+    cout << "[ASP] STUN ended. Enemies resumed." << endl;
+}
 void* enemyThreadFunction(void* arg) {
     int enemyId = *((int*)arg);
 
     while (true) {
+        while (aspStunned == 1) {
+    pause();
+}
         sem_wait(&state->stateLock);
 
         int status = state->gameStatus;
@@ -142,7 +155,8 @@ int main() {
     sem_wait(&state->stateLock);
     int enemyCount = state->enemyCount;
     sem_post(&state->stateLock);
-
+signal(SIGUSR1, stunHandler);
+signal(SIGALRM, stunRecoveryHandler);
     pthread_t enemyThreads[MAX_ENEMIES];
     int enemyIds[MAX_ENEMIES];
 
