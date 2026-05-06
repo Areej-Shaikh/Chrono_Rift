@@ -31,7 +31,7 @@ const int ROLL_SECOND_LAST  = 2;
 static SharedState* g_state = nullptr;
 static pid_t        g_aspPid = -1;   // PID of Automated Strategic Process
 static pid_t        g_hipPid = -1;   // PID of Human Interfacing Process
-
+void addActionLog(SharedState* state, const char* text);
 // ─────────────────────────────────────────────
 // SIGTERM handler – player chose to quit
 // ─────────────────────────────────────────────
@@ -217,7 +217,62 @@ int swapInWeapon(PlayerInventory &inv, int storageIndex) {
 
     return 1;
 }
+Weapon getRandomDroppedWeapon() {
+    int r = rand() % 8;
 
+    if (r == 0) {
+        return createWeapon("Solar Core", 10, 95, 1);
+    }
+    else if (r == 1) {
+        return createWeapon("Lunar Blade", 10, 90, 1);
+    }
+    else if (r == 2) {
+        return createWeapon("Iron Halberd", 7, 55, 0);
+    }
+    else if (r == 3) {
+        return createWeapon("Venom Dagger", 4, 30, 0);
+    }
+    else if (r == 4) {
+        return createWeapon("Thunderstaff", 6, 50, 0);
+    }
+    else if (r == 5) {
+        return createWeapon("Obsidian Axe", 5, 45, 0);
+    }
+    else if (r == 6) {
+        return createWeapon("Frostbow", 6, 48, 0);
+    }
+
+    return createWeapon("Splinter Stick", 2, 12, 0);
+}
+
+void handleWeaponDrop(SharedState* state, int playerId) {
+    int dropChance = rand() % 100;
+
+    if (dropChance < 50) {
+        Weapon dropped = getRandomDroppedWeapon();
+
+        int added = addWeaponToInventory(state->players[playerId].inventory, dropped);
+
+        char logText[120];
+
+        if (added == 1) {
+            sprintf(logText,
+                   "DROP: %s picked up by Player %d",
+                    dropped.name,
+                    playerId);
+        }
+        else {
+            sprintf(logText,
+                    "DROP: %s dropped by Enemy, but Player %d's inventory was full.",
+                    dropped.name,
+                    playerId);
+        }
+
+        addActionLog(state, logText);
+
+        cout << "[Arbiter] " << logText << endl;
+    }
+}
 void spawnEnemyAt(SharedState* state, int index) {
     int hp = ROLL_LAST2 + randRange(50, 200);
 
@@ -363,7 +418,7 @@ void processAction(SharedState* state) {
                     state->enemies[tid].alive = 0;
                     state->enemies[tid].stamina = 0;
                     state->enemiesKilled++;
-
+handleWeaponDrop(state, pid);
                     cout << "[Arbiter] Enemy " << tid << " defeated! Total kills: "
                          << state->enemiesKilled << endl;
 
@@ -446,7 +501,7 @@ void processAction(SharedState* state) {
             state->enemies[tid].alive = 0;
             state->enemies[tid].stamina = 0;
             state->enemiesKilled++;
-
+handleWeaponDrop(state, pid);
             if (state->enemiesKilled < 10) {
                 spawnEnemyAt(state, tid);
                 addActionLog(state, "A new enemy entered the rift");

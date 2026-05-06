@@ -214,8 +214,15 @@ float startY = 440;
     text.setPosition(startX, startY);
     text.setString("[ INVENTORY ]");
     window.draw(text);
+char invInfo[80];
+sprintf(invInfo, "Weapons: %d | Storage: %d",
+        state->players[selectedPlayer].inventory.weaponCount,
+        state->players[selectedPlayer].inventory.storageCount);
 
-    startY += 30;
+text.setPosition(startX, startY + 20);
+text.setString(invInfo);
+window.draw(text);
+startY += 50;
 
     PlayerInventory &inv = state->players[selectedPlayer].inventory;
 
@@ -428,8 +435,7 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
     float logW = winW - 70;
     float logH = 120;
 
-    drawBox(window, logX, logY, logW, logH, "ACTION LOG", font);
-
+drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
     string logs = "";
 
     for (int i = 0; i < state->actionLogCount; i++) {
