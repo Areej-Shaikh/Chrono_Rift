@@ -64,6 +64,159 @@ void handleSigalrm(int sig) {
 static int randRange(int lo, int hi) {
     return lo + rand() % (hi - lo + 1);
 }
+void copyName(char dest[], const char src[]) {
+    int i = 0;
+
+    while (src[i] != '\0') {
+        dest[i] = src[i];
+        i++;
+    }
+
+    dest[i] = '\0';
+}
+
+Weapon createWeapon(const char name[], int slotSize, int damage, int isArtifact) {
+    Weapon w;
+    copyName(w.name, name);
+    w.slotSize = slotSize;
+    w.damage = damage;
+    w.isArtifact = isArtifact;
+    return w;
+}
+
+void initializeInventory(PlayerInventory &inv) {
+    for (int i = 0; i < INVENTORY_SIZE; i++) {
+        inv.slots[i] = -1;
+    }
+
+    for (int i = 0; i < MAX_WEAPONS; i++) {
+        inv.weapons[i].startSlot = -1;
+        inv.weapons[i].active = 0;
+    }
+
+    inv.weaponCount = 0;
+    inv.storageCount = 0;
+}
+
+int findContiguousSpace(PlayerInventory &inv, int neededSlots) {
+    for (int i = 0; i <= INVENTORY_SIZE - neededSlots; i++) {
+        int freeSpace = 1;
+
+        for (int j = i; j < i + neededSlots; j++) {
+            if (inv.slots[j] != -1) {
+                freeSpace = 0;
+                break;
+            }
+        }
+
+        if (freeSpace == 1) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+void removeWeaponToStorage(PlayerInventory &inv, int weaponIndex) {
+    if (weaponIndex < 0 || weaponIndex >= inv.weaponCount) {
+        return;
+    }
+
+    if (inv.weapons[weaponIndex].active == 0) {
+        return;
+    }
+
+    int start = inv.weapons[weaponIndex].startSlot;
+    int size = inv.weapons[weaponIndex].weapon.slotSize;
+
+    for (int i = start; i < start + size; i++) {
+        inv.slots[i] = -1;
+    }
+
+    if (inv.storageCount < MAX_STORAGE) {
+        inv.longTermStorage[inv.storageCount] = inv.weapons[weaponIndex].weapon;
+        inv.storageCount++;
+    }
+
+    inv.weapons[weaponIndex].active = 0;
+    inv.weapons[weaponIndex].startSlot = -1;
+}
+
+void swapOutEnoughWeapons(PlayerInventory &inv, int neededSlots) {
+    while (findContiguousSpace(inv, neededSlots) == -1) {
+        int bestWeapon = -1;
+        int smallestSize = 999;
+
+        for (int i = 0; i < inv.weaponCount; i++) {
+            if (inv.weapons[i].active == 1) {
+                int size = inv.weapons[i].weapon.slotSize;
+
+                if (size < smallestSize) {
+                    smallestSize = size;
+                    bestWeapon = i;
+                }
+            }
+        }
+
+        if (bestWeapon == -1) {
+            break;
+        }
+
+        removeWeaponToStorage(inv, bestWeapon);
+    }
+}
+
+int addWeaponToInventory(PlayerInventory &inv, Weapon weapon) {
+    if (weapon.slotSize > INVENTORY_SIZE) {
+        return 0;
+    }
+
+    int start = findContiguousSpace(inv, weapon.slotSize);
+
+    if (start == -1) {
+        swapOutEnoughWeapons(inv, weapon.slotSize);
+        start = findContiguousSpace(inv, weapon.slotSize);
+    }
+
+    if (start == -1 || inv.weaponCount >= MAX_WEAPONS) {
+        return 0;
+    }
+
+    int index = inv.weaponCount;
+    inv.weaponCount++;
+
+    inv.weapons[index].weapon = weapon;
+    inv.weapons[index].startSlot = start;
+    inv.weapons[index].active = 1;
+
+    for (int i = start; i < start + weapon.slotSize; i++) {
+        inv.slots[i] = index;
+    }
+
+    return 1;
+}
+
+int swapInWeapon(PlayerInventory &inv, int storageIndex) {
+    if (storageIndex < 0 || storageIndex >= inv.storageCount) {
+        return 0;
+    }
+
+    Weapon weapon = inv.longTermStorage[storageIndex];
+
+    int added = addWeaponToInventory(inv, weapon);
+
+    if (added == 0) {
+        return 0;
+    }
+
+    for (int i = storageIndex; i < inv.storageCount - 1; i++) {
+        inv.longTermStorage[i] = inv.longTermStorage[i + 1];
+    }
+
+    inv.storageCount--;
+
+    return 1;
+}
 
 void spawnEnemyAt(SharedState* state, int index) {
     int hp = ROLL_LAST2 + randRange(50, 200);
@@ -99,6 +252,11 @@ void initEntities(SharedState* state) {
         state->players[i].speed   = playerSpeed;
         state->players[i].stamina = 0;
         state->players[i].alive   = 1;
+        initializeInventory(state->players[i].inventory);
+        if (i == 0) {
+    addWeaponToInventory(state->players[i].inventory, createWeapon("Solar Core", 10, 95, 1));
+    addWeaponToInventory(state->players[i].inventory, createWeapon("Lunar Blade", 10, 90, 1));
+}
     }
 
     // Enemy count: random 2–9
@@ -261,6 +419,59 @@ void processAction(SharedState* state) {
                  << " healed by " << healAmount
                  << " HP. Current HP: " << state->players[pid].hp << endl;
         }
+        else if (req.actionType == ACTION_USE_WEAPON) {
+    int tid = req.targetId;
+    int weaponIndex = req.targetType;
+
+    if (weaponIndex >= 0 &&
+        weaponIndex < state->players[pid].inventory.weaponCount &&
+        state->players[pid].inventory.weapons[weaponIndex].active == 1 &&
+        tid >= 0 &&
+        tid < state->enemyCount &&
+        state->enemies[tid].alive == 1) {
+
+        int dmg = state->players[pid].inventory.weapons[weaponIndex].weapon.damage;
+        state->enemies[tid].hp -= dmg;
+
+        char logText[100];
+        sprintf(logText, "Player %d used %s on Enemy %d for %d damage",
+                pid,
+                state->players[pid].inventory.weapons[weaponIndex].weapon.name,
+                tid,
+                dmg);
+        addActionLog(state, logText);
+
+        if (state->enemies[tid].hp <= 0) {
+            state->enemies[tid].hp = 0;
+            state->enemies[tid].alive = 0;
+            state->enemies[tid].stamina = 0;
+            state->enemiesKilled++;
+
+            if (state->enemiesKilled < 10) {
+                spawnEnemyAt(state, tid);
+                addActionLog(state, "A new enemy entered the rift");
+            }
+        }
+    }
+    state->players[pid].stamina = 0;
+}
+else if (req.actionType == ACTION_SWAP_IN) {
+    int storageIndex = req.targetId;
+
+    int success = swapInWeapon(state->players[pid].inventory, storageIndex);
+
+    if (success == 1) {
+        char logText[100];
+        sprintf(logText, "Player %d swapped in a weapon", pid);
+        addActionLog(state, logText);
+    }
+    else {
+        char logText[100];
+        sprintf(logText, "Player %d failed to swap in weapon", pid);
+        addActionLog(state, logText);
+    }
+    state->players[pid].stamina = 0;
+}
         else if (req.actionType == ACTION_SKIP) {
             char logText[100];
             sprintf(logText, "Player %d skipped turn", pid);
@@ -303,7 +514,6 @@ void processAction(SharedState* state) {
                     state->players[tid].hp = 0;
                     state->players[tid].alive = 0;
                     state->players[tid].stamina = 0;
-
                     cout << "[Arbiter] Player " << tid << " defeated!" << endl;
                 }
             }

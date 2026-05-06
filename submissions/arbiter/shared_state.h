@@ -5,7 +5,33 @@
 
 const int MAX_PLAYERS = 4;
 const int MAX_ENEMIES = 9;
+const int INVENTORY_SIZE = 20;
+const int MAX_WEAPONS = 50;
+const int MAX_STORAGE = 50;
 
+const int ACTION_USE_WEAPON = 5;
+const int ACTION_SWAP_IN = 6;
+
+struct Weapon {
+    char name[30];
+    int slotSize;
+    int damage;
+    int isArtifact;
+};
+
+struct InventoryWeapon {
+    Weapon weapon;
+    int startSlot;
+    int active;
+};
+
+struct PlayerInventory {
+    int slots[INVENTORY_SIZE];
+    InventoryWeapon weapons[MAX_WEAPONS];
+    Weapon longTermStorage[MAX_STORAGE];
+    int weaponCount;
+    int storageCount;
+};
 const int PLAYER_MAX_STAMINA = 100;
 const int ENEMY_MAX_STAMINA = 150;
 
@@ -32,6 +58,7 @@ struct Player {
     int speed;
     int stamina;
     int alive;
+    PlayerInventory inventory;
 };
 
 struct Enemy {

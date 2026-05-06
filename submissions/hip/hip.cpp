@@ -199,7 +199,100 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font, SharedState* state
 
     return 1;
 }
+void drawInventoryPanel(sf::RenderWindow& window,
+                        sf::Font& font,
+                        SharedState* state,
+                        int selectedPlayer) {
 
+    sf::Text text;
+    text.setFont(font);
+    text.setCharacterSize(16);
+    text.setFillColor(sf::Color::White);
+float startX = 720;
+float startY = 440;
+
+    text.setPosition(startX, startY);
+    text.setString("[ INVENTORY ]");
+    window.draw(text);
+
+    startY += 30;
+
+    PlayerInventory &inv = state->players[selectedPlayer].inventory;
+
+    for (int i = 0; i < INVENTORY_SIZE; i++) {
+
+       sf::RectangleShape slot(sf::Vector2f(18, 18));
+slot.setPosition(startX + i * 21, startY);
+
+        if (inv.slots[i] == -1) {
+            slot.setFillColor(sf::Color(40,40,40));
+        }
+        else {
+            slot.setFillColor(sf::Color::Green);
+        }
+
+        slot.setOutlineThickness(1);
+        slot.setOutlineColor(sf::Color::White);
+
+        window.draw(slot);
+    }
+
+    startY += 45;
+
+    text.setPosition(startX, startY);
+    text.setString("Active Weapons:");
+    window.draw(text);
+
+    startY += 25;
+
+    for (int i = 0; i < inv.weaponCount; i++) {
+
+        if (inv.weapons[i].active == 1) {
+
+            char line[120];
+
+            sprintf(line,
+                    "%d. %s | DMG:%d | Slots:%d",
+                    i,
+                    inv.weapons[i].weapon.name,
+                    inv.weapons[i].weapon.damage,
+                    inv.weapons[i].weapon.slotSize);
+
+            text.setPosition(startX, startY);
+            text.setString(line);
+
+            window.draw(text);
+
+            startY += 22;
+        }
+    }
+
+    startY += 10;
+
+    text.setPosition(startX, startY);
+    text.setString("Storage:");
+    window.draw(text);
+
+    startY += 25;
+
+    for (int i = 0; i < inv.storageCount; i++) {
+
+        char line[120];
+
+        sprintf(line,
+                "%d. %s | DMG:%d",
+                i,
+                inv.longTermStorage[i].name,
+                inv.longTermStorage[i].damage);
+
+        text.setPosition(startX, startY);
+        text.setString(line);
+
+        window.draw(text);
+
+        startY += 22;
+    }
+}
 void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
     sem_wait(&state->stateLock);
 
@@ -377,7 +470,7 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
 
 int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
     int selected = 0;
-    const int optionCount = 4;
+    const int optionCount = 6;
 
     while (window.isOpen()) {
         sf::Event event;
@@ -413,22 +506,30 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
                 }
                 else if (event.key.code == sf::Keyboard::Enter) {
                     if (selected == 0) return ACTION_STRIKE;
-                    if (selected == 1) return ACTION_EXHAUST;
-                    if (selected == 2) return ACTION_HEAL;
-                    return ACTION_SKIP;
+if (selected == 1) return ACTION_EXHAUST;
+if (selected == 2) return ACTION_USE_WEAPON;
+if (selected == 3) return ACTION_SWAP_IN;
+if (selected == 4) return ACTION_HEAL;
+return ACTION_SKIP;
                 }
-                else if (event.key.code == sf::Keyboard::Num1) {
-                    return ACTION_STRIKE;
-                }
-                else if (event.key.code == sf::Keyboard::Num2) {
-                    return ACTION_EXHAUST;
-                }
-                else if (event.key.code == sf::Keyboard::Num3) {
-                    return ACTION_HEAL;
-                }
-                else if (event.key.code == sf::Keyboard::Num4) {
-                    return ACTION_SKIP;
-                }
+             else if (event.key.code == sf::Keyboard::Num1) {
+    return ACTION_STRIKE;
+}
+else if (event.key.code == sf::Keyboard::Num2) {
+    return ACTION_EXHAUST;
+}
+else if (event.key.code == sf::Keyboard::Num3) {
+    return ACTION_USE_WEAPON;
+}
+else if (event.key.code == sf::Keyboard::Num4) {
+    return ACTION_SWAP_IN;
+}
+else if (event.key.code == sf::Keyboard::Num5) {
+    return ACTION_HEAL;
+}
+else if (event.key.code == sf::Keyboard::Num6) {
+    return ACTION_SKIP;
+}
             }
         }
 
@@ -441,24 +542,28 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
         menu.setFillColor(sf::Color::White);
 
         string line;
-
-        if (selected == 0) {
-            line = "> [1]Strike    [2]Exhaust    [3]Heal    [4]Skip";
-        }
-        else if (selected == 1) {
-            line = "[1]Strike    > [2]Exhaust    [3]Heal    [4]Skip";
-        }
-        else if (selected == 2) {
-            line = "[1]Strike    [2]Exhaust    > [3]Heal    [4]Skip";
-        }
-        else {
-            line = "[1]Strike    [2]Exhaust    [3]Heal    > [4]Skip";
-        }
-
+if (selected == 0) {
+    line = "> [1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Skip";
+}
+else if (selected == 1) {
+    line = "[1]Strike    > [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Skip";
+}
+else if (selected == 2) {
+    line = "[1]Strike    [2]Exhaust    > [3]Use Weapon    [4]Swap In    [5]Heal    [6]Skip";
+}
+else if (selected == 3) {
+    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    > [4]Swap In    [5]Heal    [6]Skip";
+}
+else if (selected == 4) {
+    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    > [5]Heal    [6]Skip";
+}
+else {
+    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    > [6]Skip";
+}
         menu.setString(line);
         menu.setPosition(35, 675);
         window.draw(menu);
-
+drawInventoryPanel(window, font, state, playerId);
         window.display();
     }
 
@@ -587,25 +692,31 @@ void handlePlayerTurnInput(sf::RenderWindow& window, sf::Font& font, SharedState
     sem_post(&state->stateLock);
 
     int actionType = showActionMenuOnBattleScreen(window, font, state, playerId);
-    int targetType = ENTITY_NONE;
+
+    int targetType = -1;
     int targetId = -1;
 
-  if (actionType == ACTION_STRIKE || actionType == ACTION_EXHAUST) {
+    if (actionType == ACTION_STRIKE || actionType == ACTION_EXHAUST || actionType == ACTION_USE_WEAPON) {
         targetId = showEnemyTargetMenuOnBattleScreen(window, font, state);
 
-        if (targetId == -1) {
-            actionType = ACTION_SKIP;
-            targetType = ENTITY_NONE;
+        if (actionType == ACTION_USE_WEAPON) {
+            targetType = 0;   // weapon index 0 for now
         }
         else {
             targetType = ENTITY_ENEMY;
         }
     }
+    else if (actionType == ACTION_SWAP_IN) {
+        targetId = 0;         // storage index 0 for now
+        targetType = -1;
+    }
 
     writeInputBuffer(state, playerId, actionType, targetType, targetId);
+
     cout << "HIP wrote input buffer for Player " << playerId
-     << " action: " << actionType
-     << " target: " << targetId << endl;
+         << " action: " << actionType
+         << " target: " << targetId
+         << endl;
 }
 
 int main() {
