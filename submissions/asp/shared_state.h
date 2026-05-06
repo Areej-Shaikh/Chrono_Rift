@@ -49,7 +49,7 @@ const int GAME_RUNNING = 0;
 const int GAME_WIN = 1;
 const int GAME_LOSE = 2;
 const int GAME_QUIT = 3;
-
+#define ACTION_ULTIMATE 7
 struct Player {
     int id;
     int hp;
@@ -96,7 +96,7 @@ struct SharedState {
 int arbiterPid;
     int partySizeSelected;
     int partySize;
-
+int ultimateActive;
     int gameInitialized;
 
     int playerCount;

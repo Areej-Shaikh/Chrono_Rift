@@ -79,13 +79,16 @@ void submitEnemyMove(int enemyId) {
     sem_post(&state->stateLock);
     sem_post(&state->actionReady);
 }
+
 void stunHandler(int sig) {
+    (void)sig;
     aspStunned = 1;
-    alarm(3);
     cout << "[ASP] STUN received. Pausing enemies for 3 seconds." << endl;
+    alarm(3);
 }
 
 void stunRecoveryHandler(int sig) {
+    (void)sig;
     aspStunned = 0;
     cout << "[ASP] STUN ended. Enemies resumed." << endl;
 }

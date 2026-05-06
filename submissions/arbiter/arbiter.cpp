@@ -39,26 +39,34 @@ static int g_staminaThreadRunning = 1;
 // ─────────────────────────────────────────────
 void handleSigterm(int sig) {
     (void)sig;
+
     if (g_state != nullptr) {
         sem_wait(&g_state->stateLock);
         g_state->gameStatus = GAME_QUIT;
         sem_post(&g_state->stateLock);
     }
+
     cout << "[Arbiter] SIGTERM received. Game set to QUIT." << endl;
 }
+void handleSigalrm(int sig) {
+    (void)sig;
 
+    if (g_state != nullptr) {
+        sem_wait(&g_state->stateLock);
+        g_state->ultimateActive = 0;
+        sem_post(&g_state->stateLock);
+    }
+
+    if (g_aspPid > 0) {
+        kill(g_aspPid, SIGCONT);
+        cout << "[Arbiter] Ultimate ended after 10 seconds. ASP resumed." << endl;
+    }
+}
 // ─────────────────────────────────────────────
 // SIGALRM handler – used for Ultimate Ability 10-second window expiry
 // (stub: full implementation comes with signals section)
 // ─────────────────────────────────────────────
-void handleSigalrm(int sig) {
-    (void)sig;
-    // When Ultimate Ability timer fires, resume ASP
-    if (g_aspPid > 0) {
-        kill(g_aspPid, SIGCONT);
-        cout << "[Arbiter] SIGALRM: Ultimate Ability window expired. ASP resumed." << endl;
-    }
-}
+
 
 // ─────────────────────────────────────────────
 // Helpers: random in range [lo, hi]
@@ -390,6 +398,24 @@ void addActionLog(SharedState* state, const char* text) {
 // Process an action request that arrived via actionReady semaphore
 // Must be called WITHOUT stateLock held (we acquire it inside)
 // ─────────────────────────────────────────────
+int playerHasSolarAndLunar(SharedState* state, int pid) {
+    int hasSolar = 0;
+    int hasLunar = 0;
+
+    for (int i = 0; i < state->players[pid].inventory.weaponCount; i++) {
+        if (state->players[pid].inventory.weapons[i].active == 1) {
+            if (strcmp(state->players[pid].inventory.weapons[i].weapon.name, "Solar Core") == 0) {
+                hasSolar = 1;
+            }
+
+            if (strcmp(state->players[pid].inventory.weapons[i].weapon.name, "Lunar Blade") == 0) {
+                hasLunar = 1;
+            }
+        }
+    }
+
+    return hasSolar == 1 && hasLunar == 1;
+}
 void processAction(SharedState* state) {
     sem_wait(&state->stateLock);
 
@@ -406,8 +432,8 @@ void processAction(SharedState* state) {
                 int dmg = state->players[pid].damage;
                 state->enemies[tid].hp -= dmg;
                 kill(g_aspPid, SIGUSR1);
-
-addActionLog(state, "Strategic Process stunned for 3 seconds");
+addActionLog(state, "STUN: Strategic Process stunned for 3 seconds");
+             
 
                 char logText[100];
                 sprintf(logText, "Player %d struck Enemy %d for %d damage", pid, tid, dmg);
@@ -531,6 +557,25 @@ else if (req.actionType == ACTION_SWAP_IN) {
         addActionLog(state, logText);
     }
     state->players[pid].stamina = 0;
+}
+else if (req.actionType == ACTION_ULTIMATE) {
+    if (playerHasSolarAndLunar(state, pid) == 1 && g_aspPid > 0) {
+        state->ultimateActive = 1;
+
+        kill(g_aspPid, SIGSTOP);
+        alarm(10);
+
+        addActionLog(state, "ULTIMATE: Strategic Process suspended for 10 seconds");
+
+        cout << "[Arbiter] Player " << pid
+             << " used ULTIMATE. ASP suspended for 10 seconds." << endl;
+    }
+    else {
+        addActionLog(state, "Ultimate failed: Solar Core and Lunar Blade required");
+
+        cout << "[Arbiter] Player " << pid
+             << " tried Ultimate but does not have both artifacts." << endl;
+    }
 }
         else if (req.actionType == ACTION_SKIP) {
             char logText[100];
@@ -888,6 +933,7 @@ int main() {
     signal(SIGTERM, handleSigterm);
     signal(SIGALRM, handleSigalrm);
 
+    
     // Create and initialize shared memory
     SharedState* state = createSharedMemory();
 
@@ -918,6 +964,7 @@ int main() {
     state->enemiesKilled      = 0;
     state->currentTurnType    = ENTITY_NONE;
     state->currentTurnId      = -1;
+    state->ultimateActive = 0;
 for (int i = 0; i < MAX_ENEMIES; i++) {
     state->npcThreadAlive[i] = 0;
 }

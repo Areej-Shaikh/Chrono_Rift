@@ -476,7 +476,7 @@ drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
 
 int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
     int selected = 0;
-    const int optionCount = 6;
+    const int optionCount = 7;
 
     while (window.isOpen()) {
         sf::Event event;
@@ -516,6 +516,7 @@ if (selected == 1) return ACTION_EXHAUST;
 if (selected == 2) return ACTION_USE_WEAPON;
 if (selected == 3) return ACTION_SWAP_IN;
 if (selected == 4) return ACTION_HEAL;
+if (selected == 5) return ACTION_ULTIMATE;
 return ACTION_SKIP;
                 }
              else if (event.key.code == sf::Keyboard::Num1) {
@@ -534,6 +535,9 @@ else if (event.key.code == sf::Keyboard::Num5) {
     return ACTION_HEAL;
 }
 else if (event.key.code == sf::Keyboard::Num6) {
+    return ACTION_ULTIMATE;
+}
+else if (event.key.code == sf::Keyboard::Num7) {
     return ACTION_SKIP;
 }
             }
@@ -549,22 +553,25 @@ else if (event.key.code == sf::Keyboard::Num6) {
 
         string line;
 if (selected == 0) {
-    line = "> [1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Skip";
+    line = "> [1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
 }
 else if (selected == 1) {
-    line = "[1]Strike    > [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Skip";
+    line = "[1]Strike    > [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
 }
 else if (selected == 2) {
-    line = "[1]Strike    [2]Exhaust    > [3]Use Weapon    [4]Swap In    [5]Heal    [6]Skip";
+    line = "[1]Strike    [2]Exhaust    > [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
 }
 else if (selected == 3) {
-    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    > [4]Swap In    [5]Heal    [6]Skip";
+    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    > [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
 }
 else if (selected == 4) {
-    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    > [5]Heal    [6]Skip";
+    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    > [5]Heal    [6]Ultimate    [7]Skip";
+}
+else if (selected == 5) {
+    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    > [6]Ultimate    [7]Skip";
 }
 else {
-    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    > [6]Skip";
+    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    > [7]Skip";
 }
         menu.setString(line);
         menu.setPosition(35, 675);
