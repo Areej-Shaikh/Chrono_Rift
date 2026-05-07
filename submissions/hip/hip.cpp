@@ -9,7 +9,8 @@
 
 using namespace std;
 
-void requestQuit(SharedState* state) {
+void requestQuit(SharedState *state)
+{
     sem_wait(&state->stateLock);
     int arbiterPid = state->arbiterPid;
     state->gameStatus = GAME_QUIT;
@@ -17,21 +18,22 @@ void requestQuit(SharedState* state) {
 
     sem_post(&state->actionReady);
 
-    if (arbiterPid > 0) {
+    if (arbiterPid > 0)
+    {
         kill(arbiterPid, SIGTERM);
     }
 }
 
-
-void centerText(sf::Text& text, float x, float y, float w, float h) {
+void centerText(sf::Text &text, float x, float y, float w, float h)
+{
     sf::FloatRect bounds = text.getLocalBounds();
     text.setPosition(
         x + (w - bounds.width) / 2 - bounds.left,
-        y + (h - bounds.height) / 2 - bounds.top
-    );
+        y + (h - bounds.height) / 2 - bounds.top);
 }
 
-void drawBox(sf::RenderWindow& window, float x, float y, float w, float h, string title, sf::Font& font) {
+void drawBox(sf::RenderWindow &window, float x, float y, float w, float h, string title, sf::Font &font)
+{
     sf::RectangleShape box;
     box.setSize(sf::Vector2f(w, h));
     box.setPosition(x, y);
@@ -49,18 +51,22 @@ void drawBox(sf::RenderWindow& window, float x, float y, float w, float h, strin
     window.draw(titleText);
 }
 
-sf::RectangleShape makeBar(float x, float y, float w, float h, int value, int maxValue, sf::Color color) {
-    if (maxValue <= 0) {
+sf::RectangleShape makeBar(float x, float y, float w, float h, int value, int maxValue, sf::Color color)
+{
+    if (maxValue <= 0)
+    {
         maxValue = 1;
     }
 
     float percent = (float)value / maxValue;
 
-    if (percent < 0) {
+    if (percent < 0)
+    {
         percent = 0;
     }
 
-    if (percent > 1) {
+    if (percent > 1)
+    {
         percent = 1;
     }
 
@@ -72,51 +78,66 @@ sf::RectangleShape makeBar(float x, float y, float w, float h, int value, int ma
     return bar;
 }
 
-int selectPartySize(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
+int selectPartySize(sf::RenderWindow &window, sf::Font &font, SharedState *state)
+{
     int selected = 0;
 
-    while (window.isOpen()) {
+    while (window.isOpen())
+    {
         sf::Event event;
 
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
+        while (window.pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+            {
                 window.close();
                 return 1;
             }
 
-            if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Q) {
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::Q)
+                {
                     requestQuit(state);
                     window.close();
                     return 1;
                 }
-                if (event.key.code == sf::Keyboard::Up) {
+                if (event.key.code == sf::Keyboard::Up)
+                {
                     selected--;
 
-                    if (selected < 0) {
+                    if (selected < 0)
+                    {
                         selected = 3;
                     }
                 }
-                else if (event.key.code == sf::Keyboard::Down) {
+                else if (event.key.code == sf::Keyboard::Down)
+                {
                     selected++;
 
-                    if (selected > 3) {
+                    if (selected > 3)
+                    {
                         selected = 0;
                     }
                 }
-                else if (event.key.code == sf::Keyboard::Enter) {
+                else if (event.key.code == sf::Keyboard::Enter)
+                {
                     return selected + 1;
                 }
-                else if (event.key.code == sf::Keyboard::Num1) {
+                else if (event.key.code == sf::Keyboard::Num1)
+                {
                     return 1;
                 }
-                else if (event.key.code == sf::Keyboard::Num2) {
+                else if (event.key.code == sf::Keyboard::Num2)
+                {
                     return 2;
                 }
-                else if (event.key.code == sf::Keyboard::Num3) {
+                else if (event.key.code == sf::Keyboard::Num3)
+                {
                     return 3;
                 }
-                else if (event.key.code == sf::Keyboard::Num4) {
+                else if (event.key.code == sf::Keyboard::Num4)
+                {
                     return 4;
                 }
             }
@@ -148,7 +169,8 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font, SharedState* state
         centerText(subtitle, panelX, panelY + 85, panelW, 35);
         window.draw(subtitle);
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++)
+        {
             float boxW = 320;
             float boxH = 45;
             float boxX = panelX + (panelW - boxW) / 2;
@@ -159,11 +181,13 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font, SharedState* state
             optionBox.setPosition(boxX, boxY);
             optionBox.setOutlineThickness(1);
 
-            if (i == selected) {
+            if (i == selected)
+            {
                 optionBox.setFillColor(sf::Color(35, 75, 95));
                 optionBox.setOutlineColor(sf::Color(80, 210, 255));
             }
-            else {
+            else
+            {
                 optionBox.setFillColor(sf::Color(15, 15, 20));
                 optionBox.setOutlineColor(sf::Color(120, 120, 120));
             }
@@ -175,7 +199,8 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font, SharedState* state
 
             string text = to_string(i + 1) + " PLAYER";
 
-            if (i + 1 > 1) {
+            if (i + 1 > 1)
+            {
                 text += "S";
             }
 
@@ -199,42 +224,46 @@ int selectPartySize(sf::RenderWindow& window, sf::Font& font, SharedState* state
 
     return 1;
 }
-void drawInventoryPanel(sf::RenderWindow& window,
-                        sf::Font& font,
-                        SharedState* state,
-                        int selectedPlayer) {
+void drawInventoryPanel(sf::RenderWindow &window,
+                        sf::Font &font,
+                        SharedState *state,
+                        int selectedPlayer)
+{
 
     sf::Text text;
     text.setFont(font);
     text.setCharacterSize(16);
     text.setFillColor(sf::Color::White);
-float startX = 720;
-float startY = 440;
+    float startX = 720;
+    float startY = 440;
 
     text.setPosition(startX, startY);
     text.setString("[ INVENTORY ]");
     window.draw(text);
-char invInfo[80];
-sprintf(invInfo, "Weapons: %d | Storage: %d",
-        state->players[selectedPlayer].inventory.weaponCount,
-        state->players[selectedPlayer].inventory.storageCount);
+    char invInfo[80];
+    sprintf(invInfo, "Weapons: %d | Storage: %d",
+            state->players[selectedPlayer].inventory.weaponCount,
+            state->players[selectedPlayer].inventory.storageCount);
 
-text.setPosition(startX, startY + 20);
-text.setString(invInfo);
-window.draw(text);
-startY += 50;
+    text.setPosition(startX, startY + 20);
+    text.setString(invInfo);
+    window.draw(text);
+    startY += 50;
 
     PlayerInventory &inv = state->players[selectedPlayer].inventory;
 
-    for (int i = 0; i < INVENTORY_SIZE; i++) {
+    for (int i = 0; i < INVENTORY_SIZE; i++)
+    {
 
-       sf::RectangleShape slot(sf::Vector2f(18, 18));
-slot.setPosition(startX + i * 21, startY);
+        sf::RectangleShape slot(sf::Vector2f(18, 18));
+        slot.setPosition(startX + i * 21, startY);
 
-        if (inv.slots[i] == -1) {
-            slot.setFillColor(sf::Color(40,40,40));
+        if (inv.slots[i] == -1)
+        {
+            slot.setFillColor(sf::Color(40, 40, 40));
         }
-        else {
+        else
+        {
             slot.setFillColor(sf::Color::Green);
         }
 
@@ -252,9 +281,11 @@ slot.setPosition(startX + i * 21, startY);
 
     startY += 25;
 
-    for (int i = 0; i < inv.weaponCount; i++) {
+    for (int i = 0; i < inv.weaponCount; i++)
+    {
 
-        if (inv.weapons[i].active == 1) {
+        if (inv.weapons[i].active == 1)
+        {
 
             char line[120];
 
@@ -282,7 +313,8 @@ slot.setPosition(startX + i * 21, startY);
 
     startY += 25;
 
-    for (int i = 0; i < inv.storageCount; i++) {
+    for (int i = 0; i < inv.storageCount; i++)
+    {
 
         char line[120];
 
@@ -300,14 +332,15 @@ slot.setPosition(startX + i * 21, startY);
         startY += 22;
     }
 }
-void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
+void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state)
+{
     sem_wait(&state->stateLock);
 
     float winW = (float)window.getSize().x;
 
     sf::Text header;
     header.setFont(font);
-    header.setString("CHRONO RIFT  |  Q=Quit  |  KILLS: 0/10");
+    header.setString("CHRONO RIFT  |  Q=Quit  |  KILLS: " + to_string(state->enemiesKilled) + "/10");
     header.setCharacterSize(15);
     header.setFillColor(sf::Color(80, 210, 255));
 
@@ -335,7 +368,8 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
     drawBox(window, partyX, partyY, partyW, partyH, "PARTY", font);
     drawBox(window, enemyX, enemyY, enemyW, enemyH, "VOID WRAITHS", font);
 
-    for (int i = 0; i < state->playerCount; i++) {
+    for (int i = 0; i < state->playerCount; i++)
+    {
         float y = partyY + 45 + i * 45;
 
         sf::Text label;
@@ -361,8 +395,7 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
             partyX + 101, y + 5, 138, 10,
             state->players[i].hp,
             state->players[i].maxHp,
-            sf::Color(50, 210, 120)
-        );
+            sf::Color(50, 210, 120));
         window.draw(hpBar);
 
         sf::Text stamina;
@@ -373,7 +406,8 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
         stamina.setPosition(partyX + 250, y);
         window.draw(stamina);
 
-        if (state->currentTurnType == ENTITY_PLAYER && state->currentTurnId == i) {
+        if (state->currentTurnType == ENTITY_PLAYER && state->currentTurnId == i)
+        {
             sf::RectangleShape active;
             active.setSize(sf::Vector2f(partyW - 40, 30));
             active.setPosition(partyX + 20, y - 6);
@@ -384,7 +418,8 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
         }
     }
 
-    for (int i = 0; i < state->enemyCount; i++) {
+    for (int i = 0; i < state->enemyCount; i++)
+    {
         float y = enemyY + 45 + i * 32;
 
         sf::Text enemyLabel;
@@ -407,19 +442,19 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
             enemyX + 96, y + 5, 148, 10,
             state->enemies[i].hp,
             state->enemies[i].maxHp,
-            sf::Color(230, 80, 80)
-        );
+            sf::Color(230, 80, 80));
         window.draw(hpBar);
 
         sf::Text hpText;
         hpText.setFont(font);
         hpText.setCharacterSize(14);
         hpText.setFillColor(sf::Color::White);
-        hpText.setString("] " + to_string(state->enemies[i].hp) + "HP");
+        hpText.setString("] " + to_string(state->enemies[i].hp) + "HP ST:" + to_string(state->enemies[i].stamina));
         hpText.setPosition(enemyX + 255, y);
         window.draw(hpText);
 
-        if (state->currentTurnType == ENTITY_ENEMY && state->currentTurnId == i) {
+        if (state->currentTurnType == ENTITY_ENEMY && state->currentTurnId == i)
+        {
             sf::RectangleShape active;
             active.setSize(sf::Vector2f(enemyW - 40, 26));
             active.setPosition(enemyX + 20, y - 5);
@@ -435,10 +470,11 @@ void drawBattleView(sf::RenderWindow& window, sf::Font& font, SharedState* state
     float logW = winW - 70;
     float logH = 120;
 
-drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
+    drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
     string logs = "";
 
-    for (int i = 0; i < state->actionLogCount; i++) {
+    for (int i = 0; i < state->actionLogCount; i++)
+    {
         logs += "> ";
         logs += string(state->actionLog[i]);
         logs += "\n";
@@ -457,13 +493,16 @@ drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
     turnText.setCharacterSize(15);
     turnText.setFillColor(sf::Color::White);
 
-    if (state->currentTurnType == ENTITY_PLAYER) {
+    if (state->currentTurnType == ENTITY_PLAYER)
+    {
         turnText.setString("== P" + to_string(state->currentTurnId + 1) + " TURN ==");
     }
-    else if (state->currentTurnType == ENTITY_ENEMY) {
+    else if (state->currentTurnType == ENTITY_ENEMY)
+    {
         turnText.setString("== NPC" + to_string(state->currentTurnId + 1) + " TURN ==");
     }
-    else {
+    else
+    {
         turnText.setString("== WAITING ==");
     }
 
@@ -473,16 +512,19 @@ drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
     sem_post(&state->stateLock);
 }
 
-
-int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
+int showActionMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, SharedState *state, int playerId)
+{
     int selected = 0;
     const int optionCount = 7;
 
-    while (window.isOpen()) {
+    while (window.isOpen())
+    {
         sf::Event event;
 
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
+        while (window.pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+            {
                 window.close();
 
                 requestQuit(state);
@@ -490,56 +532,76 @@ int showActionMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, Share
                 return ACTION_SKIP;
             }
 
-            if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Q) {
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::Q)
+                {
                     requestQuit(state);
                     window.close();
                     return ACTION_SKIP;
                 }
-                if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::Up) {
+                if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::Up)
+                {
                     selected--;
 
-                    if (selected < 0) {
+                    if (selected < 0)
+                    {
                         selected = optionCount - 1;
                     }
                 }
-                else if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::Down) {
+                else if (event.key.code == sf::Keyboard::Right || event.key.code == sf::Keyboard::Down)
+                {
                     selected++;
 
-                    if (selected >= optionCount) {
+                    if (selected >= optionCount)
+                    {
                         selected = 0;
                     }
                 }
-                else if (event.key.code == sf::Keyboard::Enter) {
-                    if (selected == 0) return ACTION_STRIKE;
-if (selected == 1) return ACTION_EXHAUST;
-if (selected == 2) return ACTION_USE_WEAPON;
-if (selected == 3) return ACTION_SWAP_IN;
-if (selected == 4) return ACTION_HEAL;
-if (selected == 5) return ACTION_ULTIMATE;
-return ACTION_SKIP;
+                else if (event.key.code == sf::Keyboard::Enter)
+                {
+                    if (selected == 0)
+                        return ACTION_STRIKE;
+                    if (selected == 1)
+                        return ACTION_EXHAUST;
+                    if (selected == 2)
+                        return ACTION_USE_WEAPON;
+                    if (selected == 3)
+                        return ACTION_SWAP_IN;
+                    if (selected == 4)
+                        return ACTION_HEAL;
+                    if (selected == 5)
+                        return ACTION_ULTIMATE;
+                    return ACTION_SKIP;
                 }
-             else if (event.key.code == sf::Keyboard::Num1) {
-    return ACTION_STRIKE;
-}
-else if (event.key.code == sf::Keyboard::Num2) {
-    return ACTION_EXHAUST;
-}
-else if (event.key.code == sf::Keyboard::Num3) {
-    return ACTION_USE_WEAPON;
-}
-else if (event.key.code == sf::Keyboard::Num4) {
-    return ACTION_SWAP_IN;
-}
-else if (event.key.code == sf::Keyboard::Num5) {
-    return ACTION_HEAL;
-}
-else if (event.key.code == sf::Keyboard::Num6) {
-    return ACTION_ULTIMATE;
-}
-else if (event.key.code == sf::Keyboard::Num7) {
-    return ACTION_SKIP;
-}
+                else if (event.key.code == sf::Keyboard::Num1)
+                {
+                    return ACTION_STRIKE;
+                }
+                else if (event.key.code == sf::Keyboard::Num2)
+                {
+                    return ACTION_EXHAUST;
+                }
+                else if (event.key.code == sf::Keyboard::Num3)
+                {
+                    return ACTION_USE_WEAPON;
+                }
+                else if (event.key.code == sf::Keyboard::Num4)
+                {
+                    return ACTION_SWAP_IN;
+                }
+                else if (event.key.code == sf::Keyboard::Num5)
+                {
+                    return ACTION_HEAL;
+                }
+                else if (event.key.code == sf::Keyboard::Num6)
+                {
+                    return ACTION_ULTIMATE;
+                }
+                else if (event.key.code == sf::Keyboard::Num7)
+                {
+                    return ACTION_SKIP;
+                }
             }
         }
 
@@ -552,51 +614,62 @@ else if (event.key.code == sf::Keyboard::Num7) {
         menu.setFillColor(sf::Color::White);
 
         string line;
-if (selected == 0) {
-    line = "> [1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
-}
-else if (selected == 1) {
-    line = "[1]Strike    > [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
-}
-else if (selected == 2) {
-    line = "[1]Strike    [2]Exhaust    > [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
-}
-else if (selected == 3) {
-    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    > [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
-}
-else if (selected == 4) {
-    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    > [5]Heal    [6]Ultimate    [7]Skip";
-}
-else if (selected == 5) {
-    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    > [6]Ultimate    [7]Skip";
-}
-else {
-    line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    > [7]Skip";
-}
+        if (selected == 0)
+        {
+            line = "> [1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
+        }
+        else if (selected == 1)
+        {
+            line = "[1]Strike    > [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
+        }
+        else if (selected == 2)
+        {
+            line = "[1]Strike    [2]Exhaust    > [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
+        }
+        else if (selected == 3)
+        {
+            line = "[1]Strike    [2]Exhaust    [3]Use Weapon    > [4]Swap In    [5]Heal    [6]Ultimate    [7]Skip";
+        }
+        else if (selected == 4)
+        {
+            line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    > [5]Heal    [6]Ultimate    [7]Skip";
+        }
+        else if (selected == 5)
+        {
+            line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    > [6]Ultimate    [7]Skip";
+        }
+        else
+        {
+            line = "[1]Strike    [2]Exhaust    [3]Use Weapon    [4]Swap In    [5]Heal    [6]Ultimate    > [7]Skip";
+        }
         menu.setString(line);
         menu.setPosition(35, 675);
         window.draw(menu);
-drawInventoryPanel(window, font, state, playerId);
+        drawInventoryPanel(window, font, state, playerId);
         window.display();
     }
 
     return ACTION_SKIP;
 }
 
-int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, SharedState* state) {
+int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, SharedState *state)
+{
     int selected = 0;
 
-    while (window.isOpen()) {
+    while (window.isOpen())
+    {
         sem_wait(&state->stateLock);
 
         int enemyCount = state->enemyCount;
 
-        if (enemyCount <= 0) {
+        if (enemyCount <= 0)
+        {
             sem_post(&state->stateLock);
             return -1;
         }
 
-        if (selected >= enemyCount) {
+        if (selected >= enemyCount)
+        {
             selected = enemyCount - 1;
         }
 
@@ -604,8 +677,10 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
 
         sf::Event event;
 
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
+        while (window.pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+            {
                 window.close();
 
                 requestQuit(state);
@@ -613,46 +688,55 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
                 return -1;
             }
 
-            if (event.type == sf::Event::KeyPressed) {
-                if (event.key.code == sf::Keyboard::Q) {
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::Q)
+                {
                     requestQuit(state);
                     window.close();
                     return -1;
                 }
-                if (event.key.code == sf::Keyboard::Up) {
+                if (event.key.code == sf::Keyboard::Up)
+                {
                     selected--;
 
-                    if (selected < 0) {
+                    if (selected < 0)
+                    {
                         sem_wait(&state->stateLock);
                         selected = state->enemyCount - 1;
                         sem_post(&state->stateLock);
                     }
                 }
-                else if (event.key.code == sf::Keyboard::Down) {
+                else if (event.key.code == sf::Keyboard::Down)
+                {
                     selected++;
 
                     sem_wait(&state->stateLock);
 
-                    if (selected >= state->enemyCount) {
+                    if (selected >= state->enemyCount)
+                    {
                         selected = 0;
                     }
 
                     sem_post(&state->stateLock);
                 }
-                else if (event.key.code == sf::Keyboard::Enter) {
+                else if (event.key.code == sf::Keyboard::Enter)
+                {
                     sem_wait(&state->stateLock);
 
                     int valid = 0;
 
                     if (selected >= 0 &&
                         selected < state->enemyCount &&
-                        state->enemies[selected].alive == 1) {
+                        state->enemies[selected].alive == 1)
+                    {
                         valid = 1;
                     }
 
                     sem_post(&state->stateLock);
 
-                    if (valid == 1) {
+                    if (valid == 1)
+                    {
                         return selected;
                     }
                 }
@@ -671,8 +755,10 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
 
         sem_wait(&state->stateLock);
 
-        for (int i = 0; i < state->enemyCount; i++) {
-            if (i == selected) {
+        for (int i = 0; i < state->enemyCount; i++)
+        {
+            if (i == selected)
+            {
                 line += "> ";
             }
 
@@ -686,7 +772,7 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
         sem_post(&state->stateLock);
 
         targetText.setString(line);
-       targetText.setPosition(35, 705);
+        targetText.setPosition(35, 705);
         window.draw(targetText);
 
         window.display();
@@ -694,10 +780,12 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow& window, sf::Font& font, 
 
     return -1;
 }
-void handlePlayerTurnInput(sf::RenderWindow& window, sf::Font& font, SharedState* state, int playerId) {
+void handlePlayerTurnInput(sf::RenderWindow &window, sf::Font &font, SharedState *state, int playerId)
+{
     sem_wait(&state->stateLock);
 
-    if (state->inputBuffer.hasInput == 1) {
+    if (state->inputBuffer.hasInput == 1)
+    {
         sem_post(&state->stateLock);
         return;
     }
@@ -709,18 +797,22 @@ void handlePlayerTurnInput(sf::RenderWindow& window, sf::Font& font, SharedState
     int targetType = -1;
     int targetId = -1;
 
-    if (actionType == ACTION_STRIKE || actionType == ACTION_EXHAUST || actionType == ACTION_USE_WEAPON) {
+    if (actionType == ACTION_STRIKE || actionType == ACTION_EXHAUST || actionType == ACTION_USE_WEAPON)
+    {
         targetId = showEnemyTargetMenuOnBattleScreen(window, font, state);
 
-        if (actionType == ACTION_USE_WEAPON) {
-            targetType = 0;   // weapon index 0 for now
+        if (actionType == ACTION_USE_WEAPON)
+        {
+            targetType = 0; // weapon index 0 for now
         }
-        else {
+        else
+        {
             targetType = ENTITY_ENEMY;
         }
     }
-    else if (actionType == ACTION_SWAP_IN) {
-        targetId = 0;         // storage index 0 for now
+    else if (actionType == ACTION_SWAP_IN)
+    {
+        targetId = 0; // storage index 0 for now
         targetType = -1;
     }
 
@@ -732,26 +824,29 @@ void handlePlayerTurnInput(sf::RenderWindow& window, sf::Font& font, SharedState
          << endl;
 }
 
-int main() {
+int main()
+{
     sleep(1);
 
-    SharedState* state = attachSharedMemory();
+    SharedState *state = attachSharedMemory();
 
-    if (state == NULL) {
+    if (state == NULL)
+    {
         cout << "HIP failed to attach shared memory." << endl;
         return 1;
     }
 
     cout << "HIP attached to shared memory." << endl;
-sf::RenderWindow window(sf::VideoMode(1100, 800), "Chrono Rift - HIP");
+    sf::RenderWindow window(sf::VideoMode(1100, 800), "Chrono Rift - HIP");
 
-sf::Font font;
+    sf::Font font;
 
-if (!font.loadFromFile("assets/font.ttf")) {
-    cout << "Font not found: assets/font.ttf" << endl;
-    detachSharedMemory(state);
-    return 1;
-}
+    if (!font.loadFromFile("assets/font.ttf"))
+    {
+        cout << "Font not found: assets/font.ttf" << endl;
+        detachSharedMemory(state);
+        return 1;
+    }
     int partySize = selectPartySize(window, font, state);
 
     sem_wait(&state->stateLock);
@@ -763,7 +858,8 @@ if (!font.loadFromFile("assets/font.ttf")) {
 
     cout << "HIP selected party size: " << partySize << endl;
 
-    while (state->gameInitialized == 0) {
+    while (state->gameInitialized == 0)
+    {
         usleep(100000);
     }
 
@@ -771,7 +867,8 @@ if (!font.loadFromFile("assets/font.ttf")) {
 
     cout << "\nPlayers initialized by Arbiter:" << endl;
 
-    for (int i = 0; i < state->playerCount; i++) {
+    for (int i = 0; i < state->playerCount; i++)
+    {
         cout << "Player " << i
              << " HP: " << state->players[i].hp
              << " Damage: " << state->players[i].damage
@@ -780,21 +877,25 @@ if (!font.loadFromFile("assets/font.ttf")) {
              << endl;
     }
 
-   sem_post(&state->stateLock);
-createPlayerThreads(state);
+    sem_post(&state->stateLock);
+    createPlayerThreads(state);
 
-int lastHandledTurnType = ENTITY_NONE;
-int lastHandledTurnId = -1;
+    int lastHandledTurnType = ENTITY_NONE;
+    int lastHandledTurnId = -1;
 
-while (window.isOpen() && state->gameStatus == GAME_RUNNING) {
+    while (window.isOpen() && state->gameStatus == GAME_RUNNING)
+    {
         sf::Event event;
 
-        while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) {
+        while (window.pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+            {
                 requestQuit(state);
                 window.close();
             }
-            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Q) {
+            else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Q)
+            {
                 requestQuit(state);
                 window.close();
             }
@@ -805,38 +906,43 @@ while (window.isOpen() && state->gameStatus == GAME_RUNNING) {
         int isPlayerTurn = 0;
         int activePlayerId = -1;
 
-        if (state->currentTurnType == ENTITY_PLAYER) {
+        if (state->currentTurnType == ENTITY_PLAYER)
+        {
             isPlayerTurn = 1;
             activePlayerId = state->currentTurnId;
         }
 
         sem_post(&state->stateLock);
-if (isPlayerTurn == 1) {
-    if (lastHandledTurnType != ENTITY_PLAYER || lastHandledTurnId != activePlayerId) {
-        handlePlayerTurnInput(window, font, state, activePlayerId);
+        if (isPlayerTurn == 1)
+        {
+            if (lastHandledTurnType != ENTITY_PLAYER || lastHandledTurnId != activePlayerId)
+            {
+                handlePlayerTurnInput(window, font, state, activePlayerId);
 
-        lastHandledTurnType = ENTITY_PLAYER;
-        lastHandledTurnId = activePlayerId;
-    }
-    else {
-        window.clear(sf::Color(15, 15, 25));
-        drawBattleView(window, font, state);
-        window.display();
-    }
-}
-else {
-    lastHandledTurnType = ENTITY_NONE;
-    lastHandledTurnId = -1;
+                lastHandledTurnType = ENTITY_PLAYER;
+                lastHandledTurnId = activePlayerId;
+            }
+            else
+            {
+                window.clear(sf::Color(15, 15, 25));
+                drawBattleView(window, font, state);
+                window.display();
+            }
+        }
+        else
+        {
+            lastHandledTurnType = ENTITY_NONE;
+            lastHandledTurnId = -1;
 
-    window.clear(sf::Color(15, 15, 25));
-    drawBattleView(window, font, state);
-    window.display();
-}
+            window.clear(sf::Color(15, 15, 25));
+            drawBattleView(window, font, state);
+            window.display();
+        }
         usleep(100000);
     }
-detachSharedMemory(state);
+    detachSharedMemory(state);
 
-cout << "HIP finished party selection test." << endl;
+    cout << "HIP finished party selection test." << endl;
 
     return 0;
 }
