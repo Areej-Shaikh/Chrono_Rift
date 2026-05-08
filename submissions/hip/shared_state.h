@@ -2,6 +2,7 @@
 #define SHARED_STATE_H
 
 #include <semaphore.h>
+#include "artifact_table.h"
 
 const int MAX_PLAYERS = 4;
 const int MAX_ENEMIES = 9;
@@ -127,6 +128,9 @@ struct SharedState
     int lastNpcTargetPlayerId;
     char actionLog[10][100];
     int actionLogCount;
+
+    // ── Artifact system (spec Section 7) ─────────────────────────────────
+    ArtifactTable artifactTable;
 };
 
 #endif
