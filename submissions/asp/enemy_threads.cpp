@@ -38,6 +38,11 @@ static void *enemyThreadFunction(void *arg)
     SharedState *state = threadArg->state;
     int enemyId = threadArg->enemyId;
 
+    // ── Mark this thread as alive in shared memory ────────────────────────
+    sem_wait(&state->stateLock);
+    state->npcThreadAlive[enemyId] = 1;
+    sem_post(&state->stateLock);
+
     while (true)
     {
         // ── Check game status and own liveness ────────────────────────────
@@ -107,6 +112,11 @@ static void *enemyThreadFunction(void *arg)
         // but player HP never changes.
         sem_wait(&state->actionDone);
     }
+
+    // ── Mark this thread as dead before exiting ───────────────────────────
+    sem_wait(&state->stateLock);
+    state->npcThreadAlive[enemyId] = 0;
+    sem_post(&state->stateLock);
 
     std::cout << "[ASP] Enemy thread " << enemyId << " exiting." << std::endl;
     return nullptr;

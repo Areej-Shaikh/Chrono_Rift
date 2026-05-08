@@ -563,7 +563,7 @@ void drawEndScreen(sf::RenderWindow &window, sf::Font &font, int status)
     {
         title = "GAME OVER";
         subtitle = "The game has ended.";
-        description = "Press Q or close the window to exit.";
+        description = " ";
     }
 
     float winW = (float)window.getSize().x;
@@ -597,7 +597,7 @@ void drawEndScreen(sf::RenderWindow &window, sf::Font &font, int status)
 
     sf::Text promptText;
     promptText.setFont(font);
-    promptText.setString("Press Q or close the window to exit.");
+    promptText.setString(" ");
     promptText.setCharacterSize(16);
     promptText.setFillColor(sf::Color(160, 160, 160));
     centerText(promptText, 170, 380, 760, 30);
@@ -1073,6 +1073,9 @@ int main()
     detachSharedMemory(state);
 
     cout << "HIP finished party selection test." << endl;
+
+    cout << "Press Enter to exit..." << endl;
+    std::cin.get();
 
     return 0;
 }

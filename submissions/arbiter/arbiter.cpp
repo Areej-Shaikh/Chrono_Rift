@@ -12,6 +12,8 @@
 
 #include "shared_memory.h"
 #include "shared_state.h"
+#include "artifact_manager.h"
+#include "deadlock_monitor.h"
 
 using namespace std;
 
@@ -33,6 +35,8 @@ const int ROLL_SECOND_LAST = 2;
 static SharedState *g_state = nullptr;
 static pid_t g_aspPid = -1;
 static pid_t g_hipPid = -1;
+static pthread_t g_deadlockThread;
+static volatile int g_deadlockStop = 0;
 void addActionLog(SharedState *state, const char *text);
 // ─────────────────────────────────────────────
 // SIGTERM handler – player chose to quit
@@ -177,8 +181,10 @@ void swapOutEnoughWeapons(PlayerInventory &inv, int neededSlots)
 {
     while (findContiguousSpace(inv, neededSlots) == -1)
     {
+        // Evict the largest active weapon first — frees the most slots per
+        // eviction, so we swap out as few weapons as necessary (spec §6).
         int bestWeapon = -1;
-        int smallestSize = 999;
+        int largestSize = -1;
 
         for (int i = 0; i < inv.weaponCount; i++)
         {
@@ -186,9 +192,9 @@ void swapOutEnoughWeapons(PlayerInventory &inv, int neededSlots)
             {
                 int size = inv.weapons[i].weapon.slotSize;
 
-                if (size < smallestSize)
+                if (size > largestSize)
                 {
-                    smallestSize = size;
+                    largestSize = size;
                     bestWeapon = i;
                 }
             }
@@ -299,15 +305,25 @@ Weapon getRandomDroppedWeapon()
     return createWeapon("Splinter Stick", 2, 12, 0);
 }
 
-void handleWeaponDrop(SharedState *state, int playerId)
+void handleWeaponDrop(SharedState *state, int killingPlayerId, int defeatedEnemyId)
 {
+    // Spec §10: if the enemy held a weapon it does not drop — it disappears.
+    if (defeatedEnemyId >= 0 && defeatedEnemyId < state->enemyCount &&
+        state->enemies[defeatedEnemyId].hasWeapon == 1)
+    {
+        addActionLog(state, "Enemy carried its own weapon — no drop.");
+        cout << "[Arbiter] Enemy " << defeatedEnemyId
+             << " had its own weapon — no drop." << endl;
+        return;
+    }
+
     int dropChance = rand() % 100;
 
     if (dropChance < 50)
     {
         Weapon dropped = getRandomDroppedWeapon();
 
-        int added = addWeaponToInventory(state->players[playerId].inventory, dropped);
+        int added = addWeaponToInventory(state->players[killingPlayerId].inventory, dropped);
 
         char logText[120];
 
@@ -316,18 +332,17 @@ void handleWeaponDrop(SharedState *state, int playerId)
             sprintf(logText,
                     "DROP: %s picked up by Player %d",
                     dropped.name,
-                    playerId);
+                    killingPlayerId);
         }
         else
         {
             sprintf(logText,
-                    "DROP: %s dropped by Enemy, but Player %d's inventory was full.",
+                    "DROP: %s — Player %d's inventory full, swapped to storage or lost.",
                     dropped.name,
-                    playerId);
+                    killingPlayerId);
         }
 
         addActionLog(state, logText);
-
         cout << "[Arbiter] " << logText << endl;
     }
 }
@@ -342,6 +357,9 @@ void spawnEnemyAt(SharedState *state, int index)
     state->enemies[index].speed = randRange(10, 30);
     state->enemies[index].stamina = 0;
     state->enemies[index].alive = 1;
+    state->enemies[index].stunned = 0;
+    // 30% chance the enemy carries its own weapon (drops nothing on death)
+    state->enemies[index].hasWeapon = (rand() % 100 < 30) ? 1 : 0;
 }
 
 // ─────────────────────────────────────────────
@@ -351,6 +369,11 @@ void spawnEnemyAt(SharedState *state, int index)
 void initEntities(SharedState *state)
 {
     srand(ROLL_NUMBER);
+
+    // Enemy count rolled first — immediately after srand so it always
+    // consumes the same RNG position regardless of party size.
+    int enemyCount = randRange(2, 9);
+    state->enemyCount = enemyCount;
 
     int playerCount = state->partySize;
     state->playerCount = playerCount;
@@ -369,16 +392,11 @@ void initEntities(SharedState *state)
         state->players[i].stamina = 0;
         state->players[i].alive = 1;
         initializeInventory(state->players[i].inventory);
-        if (i == 0)
-        {
-            addWeaponToInventory(state->players[i].inventory, createWeapon("Solar Core", 10, 95, 1));
-            addWeaponToInventory(state->players[i].inventory, createWeapon("Lunar Blade", 10, 90, 1));
-        }
+        // Players start with empty inventories.
+        // Weapons enter play exclusively through enemy drops (spec §6, §10).
     }
 
-    // Enemy count: random 2–9
-    int enemyCount = randRange(2, 9);
-    state->enemyCount = enemyCount;
+    // Enemy count already rolled above.
 
     for (int i = 0; i < enemyCount; i++)
     {
@@ -514,13 +532,27 @@ void processAction(SharedState *state)
                      << " for " << dmg << " dmg."
                      << " Enemy HP now: " << state->enemies[tid].hp << endl;
 
+                // ── Stun chance (spec §5): 25% on a strike that doesn't kill.
+                // currentTurnType/Id already point to this enemy (set by
+                // handleEnemyTurn before the turn was dispatched), so the ASP
+                // SIGUSR1 handler can identify the target without extra fields.
+                // We release stateLock BEFORE kill() so the handler runs cleanly.
+                if (state->enemies[tid].hp > 0 && rand() % 100 < 25)
+                {
+                    sem_post(&state->stateLock);
+                    cout << "[Arbiter] Enemy " << tid << " stunned!" << endl;
+                    addActionLog(state, "STUN applied to enemy");
+                    kill(g_aspPid, SIGUSR1);
+                    sem_wait(&state->stateLock);
+                }
+
                 if (state->enemies[tid].hp <= 0)
                 {
                     state->enemies[tid].hp = 0;
                     state->enemies[tid].alive = 0;
                     state->enemies[tid].stamina = 0;
                     state->enemiesKilled++;
-                    handleWeaponDrop(state, pid);
+                    handleWeaponDrop(state, pid, tid);
                     cout << "[Arbiter] Enemy " << tid << " defeated! Total kills: "
                          << state->enemiesKilled << endl;
 
@@ -613,7 +645,7 @@ void processAction(SharedState *state)
                     state->enemies[tid].alive = 0;
                     state->enemies[tid].stamina = 0;
                     state->enemiesKilled++;
-                    handleWeaponDrop(state, pid);
+                    handleWeaponDrop(state, pid, tid);
                     if (state->enemiesKilled < 10)
                     {
                         spawnEnemyAt(state, tid);
@@ -676,7 +708,7 @@ void processAction(SharedState *state)
 
         if (req.actionType == ACTION_SKIP)
         {
-            state->players[pid].stamina = 50;
+            state->players[pid].stamina = PLAYER_MAX_STAMINA / 2;
         }
         else
         {
@@ -733,7 +765,7 @@ void processAction(SharedState *state)
 
         if (req.actionType == ACTION_SKIP)
         {
-            state->enemies[eid].stamina = 50;
+            state->enemies[eid].stamina = ENEMY_MAX_STAMINA / 2;
         }
         else
         {
@@ -1118,6 +1150,10 @@ void shutdownGame(SharedState *state)
 
     sleep(1); // Give HIP time to read final state
 
+    // ── Stop the deadlock monitor thread ─────────────────────────────
+    g_deadlockStop = 1;
+    pthread_join(g_deadlockThread, nullptr);
+
     destroySharedMemory();
     cout << "[Arbiter] Shared memory destroyed. Goodbye." << endl;
 }
@@ -1179,6 +1215,10 @@ int main()
     {
         state->actionLog[i][0] = '\0';
     }
+
+    // ── Initialise artifact table inside shared memory (spec Section 7) ──
+    initArtifactTable(&state->artifactTable);
+
     g_hipPid = fork();
 
     if (g_hipPid < 0)
@@ -1233,6 +1273,13 @@ int main()
     }
 
     cout << "[Arbiter] ASP forked with PID " << g_aspPid << endl;
+
+    // ── Start deadlock monitor thread (spec Section 7) ───────────────────
+    static DeadlockMonitorArg g_deadlockArg;
+    g_deadlockArg.table = &state->artifactTable;
+    g_deadlockArg.stopFlag = &g_deadlockStop;
+    pthread_create(&g_deadlockThread, nullptr, deadlockMonitorThread, &g_deadlockArg);
+
     // ── Run the main scheduling loop ─────────────────────────────────
     runGameLoop(state);
 
