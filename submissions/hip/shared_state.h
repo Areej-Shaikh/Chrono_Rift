@@ -81,7 +81,8 @@ struct Enemy
     int stamina;
     int alive;
     int stunned;
-    int hasWeapon;  // If 1, carries own weapon — drops nothing on death (spec §10)
+    int hasWeapon; 
+    Weapon heldWeapon; 
 };
 
 struct ActionRequest

@@ -377,6 +377,18 @@ void handleWeaponDrop(SharedState *state, int killingPlayerId, int defeatedEnemy
     if (dropChance < 50)
     {
        Weapon dropped = getRandomDroppedWeapon();
+       if (defeatedEnemyId >= 0 &&
+    defeatedEnemyId < state->enemyCount &&
+    state->enemies[defeatedEnemyId].hasWeapon == 1)
+{
+    int holder = encodeEnemyHolder(defeatedEnemyId);
+
+    acquireArtifactIfNeeded(
+        state,
+        dropped,
+        holder
+    );
+}
 
        state->dropPending = 1;
 state->pendingDrop = dropped;
@@ -437,6 +449,7 @@ void processDropChoice(SharedState *state)
         if (acquired == 1)
         {
             state->enemies[enemyId].hasWeapon = 1;
+            state->enemies[enemyId].heldWeapon = dropped;
 
             char logText[120];
             sprintf(logText, "Player refused %s. Enemy picked it up.", dropped.name);

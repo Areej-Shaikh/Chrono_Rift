@@ -1444,7 +1444,6 @@ window.setActive(false);
 
 int dropPending = state->dropPending;
 int waitingChoice = (state->dropChoice == -1);
-int dropChoice = state->dropChoice;
 Weapon dropped = state->pendingDrop;
 
 sem_post(&state->stateLock);
