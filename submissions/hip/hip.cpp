@@ -332,7 +332,9 @@ void drawInventoryPanel(sf::RenderWindow &window,
         startY += 22;
     }
 }
-void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state)
+const int HIT_FLASH_TICKS = 12;
+
+void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state, int playerHitFrames[MAX_PLAYERS])
 {
     sem_wait(&state->stateLock);
 
@@ -391,11 +393,17 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
         hpBack.setOutlineColor(sf::Color(80, 180, 120));
         window.draw(hpBack);
 
+        sf::Color hpColor = sf::Color(50, 210, 120);
+        if (playerHitFrames != nullptr && playerHitFrames[i] > 0)
+        {
+            hpColor = sf::Color(210, 60, 60);
+        }
+
         sf::RectangleShape hpBar = makeBar(
             partyX + 101, y + 5, 138, 10,
             state->players[i].hp,
             state->players[i].maxHp,
-            sf::Color(50, 210, 120));
+            hpColor);
         window.draw(hpBar);
 
         sf::Text stamina;
@@ -415,6 +423,17 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
             active.setOutlineThickness(1);
             active.setOutlineColor(sf::Color::Yellow);
             window.draw(active);
+        }
+
+        if (playerHitFrames != nullptr && playerHitFrames[i] > 0)
+        {
+            sf::Text hitText;
+            hitText.setFont(font);
+            hitText.setCharacterSize(14);
+            hitText.setFillColor(sf::Color::Red);
+            hitText.setString("HIT!");
+            hitText.setPosition(partyX + 360, y - 2);
+            window.draw(hitText);
         }
     }
 
@@ -466,14 +485,18 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
     }
 
     float logX = 35;
-    float logY = 505;
+    float logY = 470;
     float logW = winW - 70;
-    float logH = 120;
+    float logH = 160;
 
     drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
-    string logs = "";
 
-    for (int i = 0; i < state->actionLogCount; i++)
+    // Build log newest-at-bottom: actionLog[0] is newest, so reverse render
+    // Show last N entries that fit — render from oldest visible to newest
+    int visibleEntries = (state->actionLogCount < 10) ? state->actionLogCount : 10;
+
+    string logs = "";
+    for (int i = visibleEntries - 1; i >= 0; i--)
     {
         logs += "> ";
         logs += string(state->actionLog[i]);
@@ -482,10 +505,10 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
 
     sf::Text logText;
     logText.setFont(font);
-    logText.setCharacterSize(14);
+    logText.setCharacterSize(13);
     logText.setFillColor(sf::Color::White);
     logText.setString(logs);
-    logText.setPosition(logX + 20, logY + 35);
+    logText.setPosition(logX + 15, logY + 30);
     window.draw(logText);
 
     sf::Text turnText;
@@ -510,6 +533,75 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
     window.draw(turnText);
 
     sem_post(&state->stateLock);
+}
+
+void drawEndScreen(sf::RenderWindow &window, sf::Font &font, int status)
+{
+    string title;
+    string subtitle;
+    string description;
+
+    if (status == GAME_WIN)
+    {
+        title = "VICTORY";
+        subtitle = "All enemies have been defeated.";
+        description = "You killed 10 enemies and escaped the Chrono Rift.";
+    }
+    else if (status == GAME_LOSE)
+    {
+        title = "DEFEAT";
+        subtitle = "All player characters have fallen.";
+        description = "The party was overwhelmed by the Void Wraiths.";
+    }
+    else if (status == GAME_QUIT)
+    {
+        title = "QUIT";
+        subtitle = "Human Interfacing Process requested termination.";
+        description = "The Arbiter received SIGTERM and the game is ending.";
+    }
+    else
+    {
+        title = "GAME OVER";
+        subtitle = "The game has ended.";
+        description = "Press Q or close the window to exit.";
+    }
+
+    float winW = (float)window.getSize().x;
+    float winH = (float)window.getSize().y;
+
+    drawBox(window, 170, 150, 760, 420, "GAME OVER", font);
+
+    sf::Text titleText;
+    titleText.setFont(font);
+    titleText.setString(title);
+    titleText.setCharacterSize(46);
+    titleText.setFillColor(sf::Color(210, 210, 255));
+    centerText(titleText, 170, 190, 760, 60);
+    window.draw(titleText);
+
+    sf::Text subtitleText;
+    subtitleText.setFont(font);
+    subtitleText.setString(subtitle);
+    subtitleText.setCharacterSize(24);
+    subtitleText.setFillColor(sf::Color::White);
+    centerText(subtitleText, 170, 265, 760, 40);
+    window.draw(subtitleText);
+
+    sf::Text descriptionText;
+    descriptionText.setFont(font);
+    descriptionText.setString(description);
+    descriptionText.setCharacterSize(18);
+    descriptionText.setFillColor(sf::Color(180, 180, 180));
+    centerText(descriptionText, 170, 330, 760, 40);
+    window.draw(descriptionText);
+
+    sf::Text promptText;
+    promptText.setFont(font);
+    promptText.setString("Press Q or close the window to exit.");
+    promptText.setCharacterSize(16);
+    promptText.setFillColor(sf::Color(160, 160, 160));
+    centerText(promptText, 170, 380, 760, 30);
+    window.draw(promptText);
 }
 
 int showActionMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, SharedState *state, int playerId)
@@ -537,7 +629,6 @@ int showActionMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, Share
                 if (event.key.code == sf::Keyboard::Q)
                 {
                     requestQuit(state);
-                    window.close();
                     return ACTION_SKIP;
                 }
                 if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::Up)
@@ -606,7 +697,7 @@ int showActionMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, Share
         }
 
         window.clear(sf::Color::Black);
-        drawBattleView(window, font, state);
+        drawBattleView(window, font, state, nullptr);
 
         sf::Text menu;
         menu.setFont(font);
@@ -693,7 +784,6 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, 
                 if (event.key.code == sf::Keyboard::Q)
                 {
                     requestQuit(state);
-                    window.close();
                     return -1;
                 }
                 if (event.key.code == sf::Keyboard::Up)
@@ -744,7 +834,7 @@ int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, 
         }
 
         window.clear(sf::Color::Black);
-        drawBattleView(window, font, state);
+        drawBattleView(window, font, state, nullptr);
 
         sf::Text targetText;
         targetText.setFont(font);
@@ -880,10 +970,20 @@ int main()
     sem_post(&state->stateLock);
     createPlayerThreads(state);
 
+    int playerHitFrames[MAX_PLAYERS] = {0};
+    int prevPlayerHp[MAX_PLAYERS] = {0};
+
+    sem_wait(&state->stateLock);
+    for (int i = 0; i < state->playerCount && i < MAX_PLAYERS; i++)
+    {
+        prevPlayerHp[i] = state->players[i].hp;
+    }
+    sem_post(&state->stateLock);
+
     int lastHandledTurnType = ENTITY_NONE;
     int lastHandledTurnId = -1;
 
-    while (window.isOpen() && state->gameStatus == GAME_RUNNING)
+    while (window.isOpen())
     {
         sf::Event event;
 
@@ -897,11 +997,22 @@ int main()
             else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Q)
             {
                 requestQuit(state);
-                window.close();
             }
         }
 
         sem_wait(&state->stateLock);
+
+        int currentStatus = state->gameStatus;
+
+        for (int i = 0; i < state->playerCount && i < MAX_PLAYERS; i++)
+        {
+            int hp = state->players[i].hp;
+            if (hp < prevPlayerHp[i])
+            {
+                playerHitFrames[i] = HIT_FLASH_TICKS;
+            }
+            prevPlayerHp[i] = hp;
+        }
 
         int isPlayerTurn = 0;
         int activePlayerId = -1;
@@ -913,31 +1024,50 @@ int main()
         }
 
         sem_post(&state->stateLock);
-        if (isPlayerTurn == 1)
-        {
-            if (lastHandledTurnType != ENTITY_PLAYER || lastHandledTurnId != activePlayerId)
-            {
-                handlePlayerTurnInput(window, font, state, activePlayerId);
 
-                lastHandledTurnType = ENTITY_PLAYER;
-                lastHandledTurnId = activePlayerId;
+        for (int i = 0; i < MAX_PLAYERS; i++)
+        {
+            if (playerHitFrames[i] > 0)
+            {
+                playerHitFrames[i]--;
+            }
+        }
+
+        if (currentStatus == GAME_RUNNING)
+        {
+            if (isPlayerTurn == 1)
+            {
+                if (lastHandledTurnType != ENTITY_PLAYER || lastHandledTurnId != activePlayerId)
+                {
+                    handlePlayerTurnInput(window, font, state, activePlayerId);
+
+                    lastHandledTurnType = ENTITY_PLAYER;
+                    lastHandledTurnId = activePlayerId;
+                }
+                else
+                {
+                    window.clear(sf::Color(15, 15, 25));
+                    drawBattleView(window, font, state, playerHitFrames);
+                    window.display();
+                }
             }
             else
             {
+                lastHandledTurnType = ENTITY_NONE;
+                lastHandledTurnId = -1;
+
                 window.clear(sf::Color(15, 15, 25));
-                drawBattleView(window, font, state);
+                drawBattleView(window, font, state, playerHitFrames);
                 window.display();
             }
         }
         else
         {
-            lastHandledTurnType = ENTITY_NONE;
-            lastHandledTurnId = -1;
-
             window.clear(sf::Color(15, 15, 25));
-            drawBattleView(window, font, state);
+            drawEndScreen(window, font, currentStatus);
             window.display();
         }
+
         usleep(100000);
     }
     detachSharedMemory(state);

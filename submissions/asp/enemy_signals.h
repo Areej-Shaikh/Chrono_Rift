@@ -2,12 +2,11 @@
 #define ENEMY_SIGNALS_H
 
 #include <signal.h>
-#include <pthread.h>
+#include "shared_state.h"
 
-extern volatile sig_atomic_t aspStunned;
-extern pthread_mutex_t stunMutex;
-extern pthread_cond_t stunCond;
-
-void setupEnemySignalHandlers();
+// Sets up signal handlers for the ASP process.
+// Must be called after shared memory is attached.
+// state is stored globally so the SIGUSR1 handler can reach it.
+void setupEnemySignalHandlers(SharedState *state);
 
 #endif

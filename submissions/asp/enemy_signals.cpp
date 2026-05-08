@@ -1,51 +1,75 @@
+/*
+ * enemy_signals.cpp  —  Signal handling for the ASP process
+ *
+ * SIGUSR1 — Stun mechanic (spec Section 5):
+ *   The Arbiter sets currentTurnType = ENTITY_ENEMY and currentTurnId = target
+ *   BEFORE sending SIGUSR1. The handler reads currentTurnId and sets
+ *   state->enemies[id].stunned = 1. The enemy thread detects this at the top
+ *   of its turn and sleeps exactly 3 seconds.
+ *
+ *   Stun is PER-ENEMY, not process-wide. Only the target enemy pauses.
+ *   Other enemy threads continue polling normally.
+ *
+ * SIGALRM is not used by the ASP — the Arbiter handles its own SIGALRM
+ * for the Ultimate Ability timer. Blocking it here prevents interference.
+ *
+ * SIGSTOP / SIGCONT — Ultimate Ability (spec Section 8):
+ *   The Arbiter sends SIGSTOP to freeze the entire ASP process for 10s,
+ *   then SIGCONT to resume. These are OS-level and cannot be caught.
+ *   No handling needed — the kernel manages them automatically.
+ */
+
 #include <iostream>
-#include <signal.h>
+#include <csignal>
 #include <pthread.h>
 
 #include "enemy_signals.h"
 
-volatile sig_atomic_t aspStunned = 0;
-pthread_mutex_t stunMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t stunCond = PTHREAD_COND_INITIALIZER;
-static sigset_t signalSet;
+// Global shared state pointer — set once in setupEnemySignalHandlers()
+static SharedState *g_signalState = nullptr;
 
-static void *signalThreadFunction(void *arg)
+// ─────────────────────────────────────────────
+// SIGUSR1 handler — per-enemy stun
+// Sets stunned flag for the enemy whose turn it currently is.
+// Must not call sem_wait (signal handlers must not block).
+// ─────────────────────────────────────────────
+static void handleSigusr1(int /*sig*/)
 {
-    (void)arg;
-    int sig;
+    if (!g_signalState)
+        return;
 
-    while (true)
+    // Arbiter sets currentTurnType = ENTITY_ENEMY and currentTurnId = target
+    // before sending SIGUSR1, so we read those fields without locking.
+    // Reading an int is atomic on all platforms we care about.
+    if (g_signalState->currentTurnType == ENTITY_ENEMY)
     {
-        sigwait(&signalSet, &sig);
-
-        if (sig == SIGUSR1)
+        int targetId = g_signalState->currentTurnId;
+        if (targetId >= 0 && targetId < MAX_ENEMIES)
         {
-            aspStunned = 1;
-            std::cout << "[ASP] STUN received. Pausing enemies for 3 seconds." << std::endl;
-            alarm(3);
-        }
-        else if (sig == SIGALRM)
-        {
-            aspStunned = 0;
-            std::cout << "[ASP] STUN ended. Enemies resumed." << std::endl;
-            pthread_mutex_lock(&stunMutex);
-            pthread_cond_broadcast(&stunCond);
-            pthread_mutex_unlock(&stunMutex);
+            g_signalState->enemies[targetId].stunned = 1;
+            std::cout << "[ASP] SIGUSR1: Enemy " << targetId
+                      << " marked stunned." << std::endl;
         }
     }
-
-    return nullptr;
 }
 
-void setupEnemySignalHandlers()
+void setupEnemySignalHandlers(SharedState *state)
 {
-    sigemptyset(&signalSet);
-    sigaddset(&signalSet, SIGUSR1);
-    sigaddset(&signalSet, SIGALRM);
+    g_signalState = state;
 
-    pthread_sigmask(SIG_BLOCK, &signalSet, NULL);
+    // Install SIGUSR1 handler for per-enemy stun
+    struct sigaction sa;
+    sa.sa_handler = handleSigusr1;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sigaction(SIGUSR1, &sa, nullptr);
 
-    pthread_t signalThread;
-    pthread_create(&signalThread, NULL, signalThreadFunction, NULL);
-    pthread_detach(signalThread);
+    // SIGTERM — let the process exit naturally (threads will notice game status)
+    signal(SIGTERM, SIG_DFL);
+
+    // SIGALRM — block it in ASP; only the Arbiter uses SIGALRM
+    sigset_t blockSet;
+    sigemptyset(&blockSet);
+    sigaddset(&blockSet, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &blockSet, nullptr);
 }

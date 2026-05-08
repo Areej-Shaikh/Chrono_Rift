@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <cstdint>
 #include <cstring>
 #include <unistd.h>
 #include <csignal>
@@ -30,10 +31,9 @@ const int ROLL_SECOND_LAST = 2;
 // Global pointer so signal handlers can reach state
 // ─────────────────────────────────────────────
 static SharedState *g_state = nullptr;
-static pid_t g_aspPid = -1; // PID of Automated Strategic Process
-static pid_t g_hipPid = -1; // PID of Human Interfacing Process
+static pid_t g_aspPid = -1;
+static pid_t g_hipPid = -1;
 void addActionLog(SharedState *state, const char *text);
-static int g_staminaThreadRunning = 1;
 // ─────────────────────────────────────────────
 // SIGTERM handler – player chose to quit
 // ─────────────────────────────────────────────
@@ -444,7 +444,8 @@ int checkGameOver(SharedState *state)
 }
 void addActionLog(SharedState *state, const char *text)
 {
-    for (int i = 4; i > 0; i--)
+    // Shift entries down — index 0 is always the newest entry
+    for (int i = 9; i > 0; i--)
     {
         strcpy(state->actionLog[i], state->actionLog[i - 1]);
     }
@@ -452,7 +453,7 @@ void addActionLog(SharedState *state, const char *text)
     strncpy(state->actionLog[0], text, 99);
     state->actionLog[0][99] = '\0';
 
-    if (state->actionLogCount < 5)
+    if (state->actionLogCount < 10)
     {
         state->actionLogCount++;
     }
@@ -503,8 +504,6 @@ void processAction(SharedState *state)
             {
                 int dmg = state->players[pid].damage;
                 state->enemies[tid].hp -= dmg;
-                kill(g_aspPid, SIGUSR1);
-                addActionLog(state, "STUN: Strategic Process stunned for 3 seconds");
 
                 char logText[100];
                 sprintf(logText, "Player %d struck Enemy %d for %d damage", pid, tid, dmg);
@@ -777,29 +776,64 @@ int ceilDivPositive(int numerator, int denominator)
     return (numerator + denominator - 1) / denominator;
 }
 
+// ─────────────────────────────────────────────
+// findReadyActor — arrival-time based selection (spec Section 3)
+//
+// Instead of checking who is full RIGHT NOW (which always gives players
+// priority because they fill faster), we compute ticks_to_full for every
+// entity and pick whoever fills soonest.
+//
+// Formula:  ticks = ceil((max_stamina - current_stamina) / speed)
+//                 = (gap + speed - 1) / speed       [integer ceiling]
+//
+// If an entity is ALREADY full (gap <= 0), ticks = 0 — it acts immediately.
+// Tie-break: lower ticks wins; among equal ticks, players before enemies,
+// lower id first within each group.
+//
+// Returns 1 if an actor was found, 0 if no alive entities exist.
+// Must be called with stateLock held.
+// ─────────────────────────────────────────────
 int findReadyActor(SharedState *state, int &outType, int &outId)
 {
+    int bestTicks = INT32_MAX;
+    outType = ENTITY_NONE;
+    outId = -1;
+
+    // Players
     for (int i = 0; i < state->playerCount; i++)
     {
-        if (state->players[i].alive == 1 && state->players[i].stamina >= PLAYER_MAX_STAMINA)
+        if (state->players[i].alive == 0)
+            continue;
+        int gap = PLAYER_MAX_STAMINA - state->players[i].stamina;
+        int spd = state->players[i].speed;
+        int ticks = (gap <= 0) ? 0 : (gap + spd - 1) / spd;
+
+        if (ticks < bestTicks)
         {
+            bestTicks = ticks;
             outType = ENTITY_PLAYER;
             outId = i;
-            return 1;
         }
     }
 
+    // Enemies — only beat a player if strictly fewer ticks (players win ties)
     for (int i = 0; i < state->enemyCount; i++)
     {
-        if (state->enemies[i].alive == 1 && state->enemies[i].stamina >= ENEMY_MAX_STAMINA)
+        if (state->enemies[i].alive == 0)
+            continue;
+        int gap = ENEMY_MAX_STAMINA - state->enemies[i].stamina;
+        int spd = state->enemies[i].speed;
+        int ticks = (gap <= 0) ? 0 : (gap + spd - 1) / spd;
+
+        if (ticks < bestTicks)
         {
+            bestTicks = ticks;
             outType = ENTITY_ENEMY;
             outId = i;
-            return 1;
         }
     }
 
-    return 0;
+    return (outType != ENTITY_NONE) ? 1 : 0;
 }
 
 int computeNextArrivalSeconds(SharedState *state)
@@ -923,9 +957,6 @@ void handleEnemyTurn(SharedState *state, int enemyId)
     }
 
     processAction(state);
-
-    // Small pause after enemy action so the player can see enemy damage or skip clearly
-    sleep(1);
 }
 
 // ─────────────────────────────────────────────
@@ -951,64 +982,32 @@ void handlePlayerTurn(SharedState *state, int playerId)
 // ─────────────────────────────────────────────
 // Main scheduling loop
 // ─────────────────────────────────────────────
-void *staminaTickerThread(void *arg)
-{
-    SharedState *state = (SharedState *)arg;
-
-    while (g_staminaThreadRunning == 1)
-    {
-        sleep(1);
-
-        sem_wait(&state->stateLock);
-
-        if (state->gameStatus != GAME_RUNNING)
-        {
-            sem_post(&state->stateLock);
-            break;
-        }
-
-        for (int i = 0; i < state->playerCount; i++)
-        {
-            if (state->players[i].alive == 1)
-            {
-                state->players[i].stamina += state->players[i].speed;
-
-                if (state->players[i].stamina > PLAYER_MAX_STAMINA)
-                {
-                    state->players[i].stamina = PLAYER_MAX_STAMINA;
-                }
-            }
-        }
-
-        for (int i = 0; i < state->enemyCount; i++)
-        {
-            if (state->enemies[i].alive == 1)
-            {
-                state->enemies[i].stamina += state->enemies[i].speed;
-
-                if (state->enemies[i].stamina > ENEMY_MAX_STAMINA)
-                {
-                    state->enemies[i].stamina = ENEMY_MAX_STAMINA;
-                }
-            }
-        }
-
-        sem_post(&state->stateLock);
-    }
-
-    return NULL;
-}
+// staminaTickerThread removed — stamina is now advanced deterministically
+// inside runGameLoop using arrival-time logic (spec Section 3).
+// The old background thread caused races: it would tick stamina while the
+// scheduler was computing the next actor, producing incorrect turn order.
+// ─────────────────────────────────────────────
+// runGameLoop — arrival-time scheduler (spec Section 3)
+//
+// How it works:
+//   1. Find who acts next (and how many ticks away they are).
+//   2. Sleep that many seconds while advancing ALL entity staminas.
+//   3. Signal that actor; wait for their action (3s timeout for enemies).
+//   4. Arbiter applies action, resets actor's stamina, loops back to 1.
+//
+// This guarantees enemies always get turns proportional to their speed.
+// A fast enemy (SPD=30) fills 150 stamina in 5 ticks; a slow one (SPD=10)
+// takes 15 ticks. Players (SPD=50, max=100) take 2 ticks.
+// ─────────────────────────────────────────────
 void runGameLoop(SharedState *state)
 {
     cout << "[Arbiter] Game loop started." << endl;
-
-    pthread_t staminaThread;
-    pthread_create(&staminaThread, NULL, staminaTickerThread, state);
 
     while (true)
     {
         int actorType = ENTITY_NONE;
         int actorId = -1;
+        int ticksToWait = 0;
 
         sem_wait(&state->stateLock);
 
@@ -1018,13 +1017,65 @@ void runGameLoop(SharedState *state)
             break;
         }
 
-        if (state->currentTurnType == ENTITY_NONE)
+        // ── Find next actor and ticks needed ──────────────────────────────
         {
-            findReadyActor(state, actorType, actorId);
+            int bestTicks = INT32_MAX;
+
+            for (int i = 0; i < state->playerCount; i++)
+            {
+                if (state->players[i].alive == 0)
+                    continue;
+                int gap = PLAYER_MAX_STAMINA - state->players[i].stamina;
+                int spd = state->players[i].speed;
+                int ticks = (gap <= 0) ? 0 : (gap + spd - 1) / spd;
+                if (ticks < bestTicks)
+                {
+                    bestTicks = ticks;
+                    actorType = ENTITY_PLAYER;
+                    actorId = i;
+                }
+            }
+            for (int i = 0; i < state->enemyCount; i++)
+            {
+                if (state->enemies[i].alive == 0)
+                    continue;
+                int gap = ENEMY_MAX_STAMINA - state->enemies[i].stamina;
+                int spd = state->enemies[i].speed;
+                int ticks = (gap <= 0) ? 0 : (gap + spd - 1) / spd;
+                if (ticks < bestTicks)
+                {
+                    bestTicks = ticks;
+                    actorType = ENTITY_ENEMY;
+                    actorId = i;
+                }
+            }
+            ticksToWait = bestTicks;
         }
 
         sem_post(&state->stateLock);
 
+        if (actorType == ENTITY_NONE)
+        {
+            usleep(50000);
+            continue;
+        }
+
+        // ── Advance stamina by ticksToWait seconds (1 real second per tick) ─
+        for (int t = 0; t < ticksToWait; t++)
+        {
+            sleep(1);
+
+            sem_wait(&state->stateLock);
+            if (state->gameStatus != GAME_RUNNING)
+            {
+                sem_post(&state->stateLock);
+                goto gameOver;
+            }
+            advanceStaminaBy(state, 1);
+            sem_post(&state->stateLock);
+        }
+
+        // ── Dispatch turn ─────────────────────────────────────────────────
         if (actorType == ENTITY_PLAYER)
         {
             handlePlayerTurn(state, actorId);
@@ -1033,15 +1084,9 @@ void runGameLoop(SharedState *state)
         {
             handleEnemyTurn(state, actorId);
         }
-        else
-        {
-            usleep(50000);
-        }
     }
 
-    g_staminaThreadRunning = 0;
-    pthread_join(staminaThread, NULL);
-
+gameOver:
     cout << "[Arbiter] Game loop ended. Status: " << g_state->gameStatus << endl;
 }
 // ─────────────────────────────────────────────

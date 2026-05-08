@@ -27,7 +27,7 @@ int runNpcProcess()
         usleep(100000);
     }
 
-    setupEnemySignalHandlers();
+    setupEnemySignalHandlers(state);
 
     sem_wait(&state->stateLock);
     int enemyCount = state->enemyCount;

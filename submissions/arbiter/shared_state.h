@@ -12,20 +12,23 @@ const int MAX_STORAGE = 50;
 const int ACTION_USE_WEAPON = 5;
 const int ACTION_SWAP_IN = 6;
 
-struct Weapon {
+struct Weapon
+{
     char name[30];
     int slotSize;
     int damage;
     int isArtifact;
 };
 
-struct InventoryWeapon {
+struct InventoryWeapon
+{
     Weapon weapon;
     int startSlot;
     int active;
 };
 
-struct PlayerInventory {
+struct PlayerInventory
+{
     int slots[INVENTORY_SIZE];
     InventoryWeapon weapons[MAX_WEAPONS];
     Weapon longTermStorage[MAX_STORAGE];
@@ -50,7 +53,8 @@ const int GAME_WIN = 1;
 const int GAME_LOSE = 2;
 const int GAME_QUIT = 3;
 #define ACTION_ULTIMATE 7
-struct Player {
+struct Player
+{
     int id;
     int hp;
     int maxHp;
@@ -59,10 +63,11 @@ struct Player {
     int stamina;
     int alive;
     PlayerInventory inventory;
-  int stunned;
+    int stunned;
 };
 
-struct Enemy {
+struct Enemy
+{
     int id;
     int hp;
     int maxHp;
@@ -73,7 +78,8 @@ struct Enemy {
     int stunned;
 };
 
-struct ActionRequest {
+struct ActionRequest
+{
     int ready;
     int entityType;
     int entityId;
@@ -82,21 +88,23 @@ struct ActionRequest {
     int targetId;
 };
 
-struct InputBuffer {
+struct InputBuffer
+{
     int hasInput;
     int playerId;
     int actionType;
     int targetType;
     int targetId;
 };
-struct SharedState {
+struct SharedState
+{
     sem_t stateLock;
     sem_t actionReady;
     sem_t actionDone;
-int arbiterPid;
+    int arbiterPid;
     int partySizeSelected;
     int partySize;
-int ultimateActive;
+    int ultimateActive;
     int gameInitialized;
 
     int playerCount;
@@ -114,11 +122,11 @@ int ultimateActive;
     int enemiesKilled;
     int gameStatus;
     int npcThreadAlive[MAX_ENEMIES];
-int lastNpcActionEnemyId;
-int lastNpcActionType;
-int lastNpcTargetPlayerId;
-char actionLog[5][100];
-int actionLogCount;
+    int lastNpcActionEnemyId;
+    int lastNpcActionType;
+    int lastNpcTargetPlayerId;
+    char actionLog[10][100];
+    int actionLogCount;
 };
 
 #endif
