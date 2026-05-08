@@ -105,7 +105,64 @@ Weapon createWeapon(const char name[], int slotSize, int damage, int isArtifact)
     w.isArtifact = isArtifact;
     return w;
 }
+int getArtifactIdFromWeapon(Weapon weapon) {
+    if (strcmp(weapon.name, "Solar Core") == 0) {
+        return ARTIFACT_SOLAR_CORE;
+    }
 
+    if (strcmp(weapon.name, "Lunar Blade") == 0) {
+        return ARTIFACT_LUNAR_BLADE;
+    }
+
+    if (strcmp(weapon.name, "Eclipse Relic") == 0) {
+        return ARTIFACT_ECLIPSE_RELIC;
+    }
+
+    return -1;
+}
+
+int isArtifactWeapon(Weapon weapon) {
+    return getArtifactIdFromWeapon(weapon) != -1;
+}
+
+void releaseArtifactIfNeeded(SharedState *state, Weapon weapon, int holder) {
+    int artifactId = getArtifactIdFromWeapon(weapon);
+
+    if (artifactId != -1) {
+        releaseArtifact(&state->artifactTable, artifactId, holder);
+    }
+    if (artifactId != -1) {
+    cout << "Releasing artifact: " << weapon.name
+         << " from holder " << holder << endl;
+}
+}
+void releaseAllPlayerArtifacts(SharedState *state, int pid)
+{
+    for (int i = 0; i < state->players[pid].inventory.weaponCount; i++)
+    {
+        if (state->players[pid].inventory.weapons[i].active == 1)
+        {
+            Weapon weapon = state->players[pid].inventory.weapons[i].weapon;
+            releaseArtifactIfNeeded(state, weapon, pid);
+        }
+    }
+}
+int acquireArtifactIfNeeded(SharedState *state, Weapon weapon, int holder) {
+    int artifactId = getArtifactIdFromWeapon(weapon);
+
+    if (artifactId == -1) {
+        return 1;
+    }
+
+    if (artifactId == ARTIFACT_ECLIPSE_RELIC) {
+        introduceEclipseRelic(&state->artifactTable);
+    }
+if (artifactId != -1) {
+    cout << "Trying to acquire artifact: " << weapon.name
+         << " for holder " << holder << endl;
+}
+    return acquireArtifact(&state->artifactTable, artifactId, holder);
+}
 void initializeInventory(PlayerInventory &inv)
 {
     for (int i = 0; i < INVENTORY_SIZE; i++)
@@ -146,86 +203,82 @@ int findContiguousSpace(PlayerInventory &inv, int neededSlots)
 
     return -1;
 }
-
-void removeWeaponToStorage(PlayerInventory &inv, int weaponIndex)
+void removeWeaponToStorage(SharedState *state, PlayerInventory &inv, int weaponIndex, int holder)
 {
-    if (weaponIndex < 0 || weaponIndex >= inv.weaponCount)
-    {
+    if (weaponIndex < 0 || weaponIndex >= inv.weaponCount) {
         return;
     }
 
-    if (inv.weapons[weaponIndex].active == 0)
-    {
+    if (inv.weapons[weaponIndex].active == 0) {
         return;
     }
+
+    Weapon removedWeapon = inv.weapons[weaponIndex].weapon;
 
     int start = inv.weapons[weaponIndex].startSlot;
-    int size = inv.weapons[weaponIndex].weapon.slotSize;
+    int size = removedWeapon.slotSize;
 
-    for (int i = start; i < start + size; i++)
-    {
+    for (int i = start; i < start + size; i++) {
         inv.slots[i] = -1;
     }
 
-    if (inv.storageCount < MAX_STORAGE)
-    {
-        inv.longTermStorage[inv.storageCount] = inv.weapons[weaponIndex].weapon;
+    if (inv.storageCount < MAX_STORAGE) {
+        inv.longTermStorage[inv.storageCount] = removedWeapon;
         inv.storageCount++;
     }
 
     inv.weapons[weaponIndex].active = 0;
     inv.weapons[weaponIndex].startSlot = -1;
-}
 
-void swapOutEnoughWeapons(PlayerInventory &inv, int neededSlots)
+    // Swapped out of active inventory, so release artifact lock.
+    releaseArtifactIfNeeded(state, removedWeapon, holder);
+}
+void swapOutEnoughWeapons(SharedState *state, PlayerInventory &inv, int neededSlots, int holder)
 {
-    while (findContiguousSpace(inv, neededSlots) == -1)
-    {
-        // Evict the largest active weapon first — frees the most slots per
-        // eviction, so we swap out as few weapons as necessary (spec §6).
+    while (findContiguousSpace(inv, neededSlots) == -1) {
         int bestWeapon = -1;
         int largestSize = -1;
 
-        for (int i = 0; i < inv.weaponCount; i++)
-        {
-            if (inv.weapons[i].active == 1)
-            {
+        for (int i = 0; i < inv.weaponCount; i++) {
+            if (inv.weapons[i].active == 1) {
                 int size = inv.weapons[i].weapon.slotSize;
 
-                if (size > largestSize)
-                {
+                if (size > largestSize) {
                     largestSize = size;
                     bestWeapon = i;
                 }
             }
         }
 
-        if (bestWeapon == -1)
-        {
+        if (bestWeapon == -1) {
             break;
         }
 
-        removeWeaponToStorage(inv, bestWeapon);
+        removeWeaponToStorage(state, inv, bestWeapon, holder);
     }
 }
 
-int addWeaponToInventory(PlayerInventory &inv, Weapon weapon)
+int addWeaponToInventory(SharedState *state, PlayerInventory &inv, Weapon weapon, int holder)
 {
-    if (weapon.slotSize > INVENTORY_SIZE)
-    {
+    if (weapon.slotSize > INVENTORY_SIZE) {
+        return 0;
+    }
+
+    int acquired = acquireArtifactIfNeeded(state, weapon, holder);
+
+    if (acquired == 0) {
         return 0;
     }
 
     int start = findContiguousSpace(inv, weapon.slotSize);
 
-    if (start == -1)
-    {
-        swapOutEnoughWeapons(inv, weapon.slotSize);
+    if (start == -1) {
+        swapOutEnoughWeapons(state, inv, weapon.slotSize, holder);
         start = findContiguousSpace(inv, weapon.slotSize);
     }
 
-    if (start == -1 || inv.weaponCount >= MAX_WEAPONS)
-    {
+    if (start == -1 || inv.weaponCount >= MAX_WEAPONS) {
+        releaseArtifactIfNeeded(state, weapon, holder);
         return 0;
     }
 
@@ -236,32 +289,27 @@ int addWeaponToInventory(PlayerInventory &inv, Weapon weapon)
     inv.weapons[index].startSlot = start;
     inv.weapons[index].active = 1;
 
-    for (int i = start; i < start + weapon.slotSize; i++)
-    {
+    for (int i = start; i < start + weapon.slotSize; i++) {
         inv.slots[i] = index;
     }
 
     return 1;
 }
-
-int swapInWeapon(PlayerInventory &inv, int storageIndex)
+int swapInWeapon(SharedState *state, PlayerInventory &inv, int storageIndex, int holder)
 {
-    if (storageIndex < 0 || storageIndex >= inv.storageCount)
-    {
+    if (storageIndex < 0 || storageIndex >= inv.storageCount) {
         return 0;
     }
 
     Weapon weapon = inv.longTermStorage[storageIndex];
 
-    int added = addWeaponToInventory(inv, weapon);
+    int added = addWeaponToInventory(state, inv, weapon, holder);
 
-    if (added == 0)
-    {
+    if (added == 0) {
         return 0;
     }
 
-    for (int i = storageIndex; i < inv.storageCount - 1; i++)
-    {
+    for (int i = storageIndex; i < inv.storageCount - 1; i++) {
         inv.longTermStorage[i] = inv.longTermStorage[i + 1];
     }
 
@@ -271,7 +319,7 @@ int swapInWeapon(PlayerInventory &inv, int storageIndex)
 }
 Weapon getRandomDroppedWeapon()
 {
-    int r = rand() % 8;
+    int r = rand() % 9;
 
     if (r == 0)
     {
@@ -301,7 +349,14 @@ Weapon getRandomDroppedWeapon()
     {
         return createWeapon("Frostbow", 6, 48, 0);
     }
-
+else if (r == 7)
+{
+    return createWeapon("Eclipse Relic", 5, 75, 1);
+}
+else if (r == 8)
+{
+    return createWeapon("Splinter Stick", 2, 12, 0);
+}
     return createWeapon("Splinter Stick", 2, 12, 0);
 }
 
@@ -321,7 +376,7 @@ void handleWeaponDrop(SharedState *state, int killingPlayerId, int defeatedEnemy
 
     if (dropChance < 50)
     {
-        Weapon dropped = getRandomDroppedWeapon();
+       Weapon dropped = getRandomDroppedWeapon();
 
        state->dropPending = 1;
 state->pendingDrop = dropped;
@@ -350,10 +405,12 @@ void processDropChoice(SharedState *state)
     int enemyId = state->dropEnemyId;
     Weapon dropped = state->pendingDrop;
 
-    if (state->dropChoice == 1)
-    {
-        int added = addWeaponToInventory(state->players[pid].inventory, dropped);
+   if (state->dropChoice == 1)
+{
+    int added = addWeaponToInventory(state, state->players[pid].inventory, dropped, pid);
 
+    if (added == 1)
+    {
         char logText[120];
         sprintf(logText, "Player %d picked up %s", pid, dropped.name);
         addActionLog(state, logText);
@@ -362,18 +419,40 @@ void processDropChoice(SharedState *state)
     }
     else
     {
-        if (enemyId >= 0 && enemyId < state->enemyCount)
-        {
-            state->enemies[enemyId].hasWeapon = 1;
-        }
-
         char logText[120];
-        sprintf(logText, "Player refused %s. Enemy picked it up.", dropped.name);
+        sprintf(logText, "Player %d could not pick %s because it is locked", pid, dropped.name);
         addActionLog(state, logText);
 
         cout << "[Arbiter] " << logText << endl;
     }
+}
+   else
+{
+    if (enemyId >= 0 && enemyId < state->enemyCount)
+    {
+        int enemyHolder = encodeEnemyHolder(enemyId);
 
+        int acquired = acquireArtifactIfNeeded(state, dropped, enemyHolder);
+
+        if (acquired == 1)
+        {
+            state->enemies[enemyId].hasWeapon = 1;
+
+            char logText[120];
+            sprintf(logText, "Player refused %s. Enemy picked it up.", dropped.name);
+            addActionLog(state, logText);
+
+            cout << "[Arbiter] " << logText << endl;
+        }
+        else
+        {
+            state->enemies[enemyId].hasWeapon = 0;
+
+            addActionLog(state, "Enemy could not pick artifact because it is locked");
+            cout << "[Arbiter] Enemy could not pick artifact because it is locked" << endl;
+        }
+    }
+}
     state->dropPending = 0;
     state->dropPlayerId = -1;
     state->dropEnemyId = -1;
@@ -591,6 +670,11 @@ void processAction(SharedState *state)
                     state->enemies[tid].alive = 0;
                     state->enemies[tid].stamina = 0;
                     state->enemiesKilled++;
+                    int enemyHolder = encodeEnemyHolder(tid);
+
+releaseArtifact(&state->artifactTable, ARTIFACT_SOLAR_CORE, enemyHolder);
+releaseArtifact(&state->artifactTable, ARTIFACT_LUNAR_BLADE, enemyHolder);
+releaseArtifact(&state->artifactTable, ARTIFACT_ECLIPSE_RELIC, enemyHolder);
                     handleWeaponDrop(state, pid, tid);
                     cout << "[Arbiter] Enemy " << tid << " defeated! Total kills: "
                          << state->enemiesKilled << endl;
@@ -684,6 +768,11 @@ void processAction(SharedState *state)
                     state->enemies[tid].alive = 0;
                     state->enemies[tid].stamina = 0;
                     state->enemiesKilled++;
+                    int enemyHolder = encodeEnemyHolder(tid);
+
+releaseArtifact(&state->artifactTable, ARTIFACT_SOLAR_CORE, enemyHolder);
+releaseArtifact(&state->artifactTable, ARTIFACT_LUNAR_BLADE, enemyHolder);
+releaseArtifact(&state->artifactTable, ARTIFACT_ECLIPSE_RELIC, enemyHolder);
                     handleWeaponDrop(state, pid, tid);
                     if (state->enemiesKilled < 10)
                     {
@@ -697,8 +786,7 @@ void processAction(SharedState *state)
         else if (req.actionType == ACTION_SWAP_IN)
         {
             int storageIndex = req.targetId;
-
-            int success = swapInWeapon(state->players[pid].inventory, storageIndex);
+int success = swapInWeapon(state, state->players[pid].inventory, storageIndex, pid);
 
             if (success == 1)
             {
@@ -716,7 +804,10 @@ void processAction(SharedState *state)
         }
         else if (req.actionType == ACTION_ULTIMATE)
         {
-            if (playerHasSolarAndLunar(state, pid) == 1 && g_aspPid > 0)
+            if (playerHasSolarAndLunar(state, pid) == 1 &&
+    holderHasArtifact(&state->artifactTable, ARTIFACT_SOLAR_CORE, pid) == 1 &&
+    holderHasArtifact(&state->artifactTable, ARTIFACT_LUNAR_BLADE, pid) == 1 &&
+    g_aspPid > 0)
             {
                 state->ultimateActive = 1;
 
@@ -780,13 +871,20 @@ void processAction(SharedState *state)
                      << " for " << dmg << " dmg."
                      << " Player HP now: " << state->players[tid].hp << endl;
 
-                if (state->players[tid].hp <= 0)
-                {
-                    state->players[tid].hp = 0;
-                    state->players[tid].alive = 0;
-                    state->players[tid].stamina = 0;
-                    cout << "[Arbiter] Player " << tid << " defeated!" << endl;
-                }
+               if (state->players[tid].hp <= 0)
+{
+    state->players[tid].hp = 0;
+    state->players[tid].alive = 0;
+    state->players[tid].stamina = 0;
+
+    releaseAllPlayerArtifacts(state, tid);
+
+    char deathLog[100];
+    sprintf(deathLog, "Player %d defeated. Artifacts released.", tid);
+    addActionLog(state, deathLog);
+
+    cout << "[Arbiter] " << deathLog << endl;
+}
             }
         }
         else
