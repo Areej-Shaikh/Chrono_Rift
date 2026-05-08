@@ -4,5 +4,6 @@
 #include "shared_state.h"
 
 void createPlayerThreads(SharedState* state);
+void joinPlayerThreads(SharedState* state);
 
 #endif

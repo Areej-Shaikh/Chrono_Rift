@@ -2,9 +2,9 @@
  * enemy_signals.cpp  —  Signal handling for the ASP process
  *
  * SIGUSR1 — Stun mechanic (spec Section 5):
- *   The Arbiter sets currentTurnType = ENTITY_ENEMY and currentTurnId = target
- *   BEFORE sending SIGUSR1. The handler reads currentTurnId and sets
- *   state->enemies[id].stunned = 1. The enemy thread detects this at the top
+ *   The Arbiter writes state->stunTargetId BEFORE sending SIGUSR1.
+ *   The handler reads stunTargetId and sets state->enemies[id].stunned = 1.
+ *   The enemy thread detects this at the top
  *   of its turn and sleeps exactly 3 seconds.
  *
  *   Stun is PER-ENEMY, not process-wide. Only the target enemy pauses.
@@ -30,7 +30,7 @@ static SharedState *g_signalState = nullptr;
 
 // ─────────────────────────────────────────────
 // SIGUSR1 handler — per-enemy stun
-// Sets stunned flag for the enemy whose turn it currently is.
+// Sets stunned flag for the exact enemy chosen by the Arbiter.
 // Must not call sem_wait (signal handlers must not block).
 // ─────────────────────────────────────────────
 static void handleSigusr1(int /*sig*/)
@@ -38,18 +38,16 @@ static void handleSigusr1(int /*sig*/)
     if (!g_signalState)
         return;
 
-    // Arbiter sets currentTurnType = ENTITY_ENEMY and currentTurnId = target
-    // before sending SIGUSR1, so we read those fields without locking.
-    // Reading an int is atomic on all platforms we care about.
-    if (g_signalState->currentTurnType == ENTITY_ENEMY)
+    // Arbiter writes stunTargetId before sending SIGUSR1.
+    // Do not use currentTurnId here: during a player attack, currentTurnId is
+    // the player id, not the enemy being hit. Reading an int is atomic here.
+    int targetId = g_signalState->stunTargetId;
+
+    if (targetId >= 0 && targetId < MAX_ENEMIES)
     {
-        int targetId = g_signalState->currentTurnId;
-        if (targetId >= 0 && targetId < MAX_ENEMIES)
-        {
-            g_signalState->enemies[targetId].stunned = 1;
-            std::cout << "[ASP] SIGUSR1: Enemy " << targetId
-                      << " marked stunned." << std::endl;
-        }
+        g_signalState->enemies[targetId].stunned = 1;
+        std::cout << "[ASP] SIGUSR1: Enemy " << targetId
+                  << " marked stunned." << std::endl;
     }
 }
 

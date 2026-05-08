@@ -323,28 +323,61 @@ void handleWeaponDrop(SharedState *state, int killingPlayerId, int defeatedEnemy
     {
         Weapon dropped = getRandomDroppedWeapon();
 
-        int added = addWeaponToInventory(state->players[killingPlayerId].inventory, dropped);
+       state->dropPending = 1;
+state->pendingDrop = dropped;
+state->dropPlayerId = killingPlayerId;
+state->dropEnemyId = defeatedEnemyId;
+state->dropChoice = -1;
+
+char logText[120];
+sprintf(logText, "DROP: %s appeared. Player %d choose Y/N.",
+        dropped.name, killingPlayerId);
+addActionLog(state, logText);
+
+cout << "[Arbiter] " << logText << endl;
+
+       
+    }
+}
+void processDropChoice(SharedState *state)
+{
+    if (state->dropPending == 0 || state->dropChoice == -1)
+    {
+        return;
+    }
+
+    int pid = state->dropPlayerId;
+    int enemyId = state->dropEnemyId;
+    Weapon dropped = state->pendingDrop;
+
+    if (state->dropChoice == 1)
+    {
+        int added = addWeaponToInventory(state->players[pid].inventory, dropped);
 
         char logText[120];
-
-        if (added == 1)
-        {
-            sprintf(logText,
-                    "DROP: %s picked up by Player %d",
-                    dropped.name,
-                    killingPlayerId);
-        }
-        else
-        {
-            sprintf(logText,
-                    "DROP: %s — Player %d's inventory full, swapped to storage or lost.",
-                    dropped.name,
-                    killingPlayerId);
-        }
-
+        sprintf(logText, "Player %d picked up %s", pid, dropped.name);
         addActionLog(state, logText);
+
         cout << "[Arbiter] " << logText << endl;
     }
+    else
+    {
+        if (enemyId >= 0 && enemyId < state->enemyCount)
+        {
+            state->enemies[enemyId].hasWeapon = 1;
+        }
+
+        char logText[120];
+        sprintf(logText, "Player refused %s. Enemy picked it up.", dropped.name);
+        addActionLog(state, logText);
+
+        cout << "[Arbiter] " << logText << endl;
+    }
+
+    state->dropPending = 0;
+    state->dropPlayerId = -1;
+    state->dropEnemyId = -1;
+    state->dropChoice = -1;
 }
 void spawnEnemyAt(SharedState *state, int index)
 {
@@ -533,15 +566,21 @@ void processAction(SharedState *state)
                      << " Enemy HP now: " << state->enemies[tid].hp << endl;
 
                 // ── Stun chance (spec §5): 25% on a strike that doesn't kill.
-                // currentTurnType/Id already point to this enemy (set by
-                // handleEnemyTurn before the turn was dispatched), so the ASP
-                // SIGUSR1 handler can identify the target without extra fields.
-                // We release stateLock BEFORE kill() so the handler runs cleanly.
+                // IMPORTANT: use stunTargetId, not currentTurnId. During a player's
+                // turn, currentTurnId is the player id, so using it would stun the
+                // wrong enemy or no enemy at all.
                 if (state->enemies[tid].hp > 0 && rand() % 100 < 25)
                 {
-                    sem_post(&state->stateLock);
+                    state->stunTargetId = tid;
+
+                    char stunLog[100];
+                    sprintf(stunLog, "Enemy %d stunned for 3 seconds", tid);
+                    addActionLog(state, stunLog);
+
                     cout << "[Arbiter] Enemy " << tid << " stunned!" << endl;
-                    addActionLog(state, "STUN applied to enemy");
+
+                    // Release shared-memory lock before signal delivery.
+                    sem_post(&state->stateLock);
                     kill(g_aspPid, SIGUSR1);
                     sem_wait(&state->stateLock);
                 }
@@ -959,15 +998,24 @@ int waitForActionWithTimeout(SharedState *state, int timeoutSecs)
 // Signals ASP (via currentTurnType/Id) and waits 3 seconds
 // If no response, auto-skip
 // ─────────────────────────────────────────────
+int isGameRunning(SharedState *state)
+{
+    sem_wait(&state->stateLock);
+    int running = (state->gameStatus == GAME_RUNNING);
+    sem_post(&state->stateLock);
+
+    return running;
+}
 void handleEnemyTurn(SharedState *state, int enemyId)
 {
     cout << "[Arbiter] Enemy " << enemyId << "'s turn." << endl;
 
     // Set turn so ASP knows who to move
-    sem_wait(&state->stateLock);
-    state->currentTurnType = ENTITY_ENEMY;
-    state->currentTurnId = enemyId;
-    sem_post(&state->stateLock);
+  sem_wait(&state->stateLock);
+state->request.ready = 0;
+state->currentTurnType = ENTITY_ENEMY;
+state->currentTurnId = enemyId;
+sem_post(&state->stateLock);
 
     // Wait up to 3 seconds for ASP to submit an action
     int got = waitForActionWithTimeout(state, 3);
@@ -988,7 +1036,10 @@ void handleEnemyTurn(SharedState *state, int enemyId)
         sem_post(&state->stateLock);
     }
 
+  if (isGameRunning(state) == 1)
+{
     processAction(state);
+}
 }
 
 // ─────────────────────────────────────────────
@@ -996,6 +1047,7 @@ void handleEnemyTurn(SharedState *state, int enemyId)
 // Sets currentTurn so HIP knows who to prompt,
 // then waits on actionReady (no timeout for players)
 // ─────────────────────────────────────────────
+
 void handlePlayerTurn(SharedState *state, int playerId)
 {
     cout << "[Arbiter] Player " << playerId << "'s turn." << endl;
@@ -1006,9 +1058,12 @@ void handlePlayerTurn(SharedState *state, int playerId)
     sem_post(&state->stateLock);
 
     // Wait indefinitely for player input
-    sem_wait(&state->actionReady);
+   sem_wait(&state->actionReady);
 
+if (isGameRunning(state) == 1)
+{
     processAction(state);
+}
 }
 
 // ─────────────────────────────────────────────
@@ -1048,7 +1103,13 @@ void runGameLoop(SharedState *state)
             sem_post(&state->stateLock);
             break;
         }
-
+processDropChoice(state);
+if (state->dropPending == 1 && state->dropChoice == -1)
+{
+    sem_post(&state->stateLock);
+    usleep(100000);
+    continue;
+}
         // ── Find next actor and ticks needed ──────────────────────────────
         {
             int bestTicks = INT32_MAX;
@@ -1100,6 +1161,7 @@ void runGameLoop(SharedState *state)
             sem_wait(&state->stateLock);
             if (state->gameStatus != GAME_RUNNING)
             {
+             
                 sem_post(&state->stateLock);
                 goto gameOver;
             }
@@ -1201,6 +1263,10 @@ int main()
     state->currentTurnType = ENTITY_NONE;
     state->currentTurnId = -1;
     state->ultimateActive = 0;
+    state->dropPending = 0;
+state->dropPlayerId = -1;
+state->dropEnemyId = -1;
+state->dropChoice = -1;
     for (int i = 0; i < MAX_ENEMIES; i++)
     {
         state->npcThreadAlive[i] = 0;

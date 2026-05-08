@@ -96,6 +96,7 @@ void initializeSharedState(SharedState* state) {
 
     state->currentTurnType = ENTITY_NONE;
     state->currentTurnId = -1;
+    state->stunTargetId = -1;
 state->inputBuffer.hasInput = 0;
 state->inputBuffer.playerId = -1;
 state->inputBuffer.actionType = ACTION_NONE;
