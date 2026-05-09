@@ -106,32 +106,29 @@ struct InputBuffer
 
 struct SharedState
 {
-    // ── Primary synchronization ───────────────────────────────────────────
-    sem_t stateLock;    // Guards all shared state reads/writes
-    sem_t actionReady;  // Signals Arbiter that an action is queued
-    sem_t actionDone;   // Signals actor that Arbiter has applied the action
-    sem_t dropAnswered; // HIP posts this when player Y/N choice is written
+    
+    sem_t stateLock;    
+    sem_t actionReady;  
+    sem_t actionDone;   
+    sem_t dropAnswered; 
 
-    // ── Enemy thread death notification ───────────────────────────────────
-    // pthread_cond_timedwait requires a pthread_mutex_t — it cannot use a
-    // sem_t. This mutex is ONLY used together with threadCleanupCond.
-    // It does NOT replace stateLock for general shared-memory protection.
+    
     pthread_mutex_t threadCleanupMutex;
     pthread_cond_t threadCleanupCond;
     int dropPending;
     Weapon pendingDrop;
     int dropPlayerId;
     int dropEnemyId;
-    int dropChoice; // -1 waiting, 0 reject, 1 accept
-    // ── Process IDs ──────────────────────────────────────────────────────
+    int dropChoice; 
+    
     int arbiterPid;
 
-    // ── Game initialization handshake ─────────────────────────────────────
+    
     int partySizeSelected;
     int partySize;
     int gameInitialized;
 
-    // ── Game state ────────────────────────────────────────────────────────
+    
     int ultimateActive;
     int playerCount;
     int enemyCount;
@@ -142,9 +139,7 @@ struct SharedState
     int currentTurnType;
     int currentTurnId;
 
-    // Arbiter writes this before sending SIGUSR1 so the ASP handler knows
-    // which enemy to stun (currentTurnId may be the attacking player at that
-    // moment, not the enemy being hit).
+    
     int stunTargetId;
 
     InputBuffer inputBuffer;
@@ -153,19 +148,19 @@ struct SharedState
     int enemiesKilled;
     int gameStatus;
 
-    // ── NPC thread liveness tracking ──────────────────────────────────────
+    
     int npcThreadAlive[MAX_ENEMIES];
 
-    // ── Last NPC action (for UI feedback) ────────────────────────────────
+    
     int lastNpcActionEnemyId;
     int lastNpcActionType;
     int lastNpcTargetPlayerId;
 
-    // ── Action log (ring buffer, index 0 = newest) ───────────────────────
+    
     char actionLog[10][100];
     int actionLogCount;
 
-    // ── Artifact system (spec Section 7) ─────────────────────────────────
+    
     ArtifactTable artifactTable;
 };
 

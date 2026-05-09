@@ -1,24 +1,4 @@
-/*
- * deadlock_monitor.cpp — Spec Section 7: Mandatory Monitoring
- *
- * Deadlock scenario from spec:
- *   Player A holds Solar Core, waiting for Lunar Blade.
- *   NPC B holds Lunar Blade, waiting for Solar Core.
- *   → circular wait → neither can proceed.
- *
- * Detection algorithm (cycle detection on wait-for graph):
- *   Nodes  = artifact entries that are held (holder != NONE)
- *   Edge   = entry[i].waitingFor = j  means  "holder of i is waiting for j"
- *
- *   We do a DFS from each artifact. If we reach an artifact we already
- *   visited in this DFS path, a cycle exists.
- *
- *   With only 3 artifacts the graph is tiny — no need for Tarjan/Kosarajus.
- *
- * Resolution:
- *   Force-release the artifact at the START of the cycle (the one whose
- *   holder was the deepest in the DFS). This unblocks the waiting side.
- */
+
 
 #include <iostream>
 #include <unistd.h>
@@ -27,16 +7,13 @@
 
 using namespace std;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DFS helper — returns the artifact id that forms the back-edge, or -1
-// visited[] and inStack[] are indexed by artifact id
-// ─────────────────────────────────────────────────────────────────────────────
+
 static int dfs(ArtifactTable *table, int node, int visited[], int inStack[], int parent[])
 {
     visited[node] = 1;
     inStack[node] = 1;
 
-    int next = table->entries[node].waitingFor; // -1 if not waiting
+    int next = table->entries[node].waitingFor; 
 
     if (next >= 0 && next < ARTIFACT_COUNT && table->entries[next].introduced)
     {
@@ -49,7 +26,7 @@ static int dfs(ArtifactTable *table, int node, int visited[], int inStack[], int
         }
         else if (inStack[next])
         {
-            // Back edge found — 'next' is the start of the cycle
+            
             return next;
         }
     }
@@ -58,14 +35,12 @@ static int dfs(ArtifactTable *table, int node, int visited[], int inStack[], int
     return -1;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// checkAndResolveDeadlock
-// ─────────────────────────────────────────────────────────────────────────────
+
 int checkAndResolveDeadlock(ArtifactTable *table)
 {
     sem_wait(&table->artLock);
 
-    // Build a local snapshot so we can release artLock before printing/acting
+    
     int holder[ARTIFACT_COUNT];
     int waitingFor[ARTIFACT_COUNT];
     int introduced[ARTIFACT_COUNT];
@@ -79,7 +54,7 @@ int checkAndResolveDeadlock(ArtifactTable *table)
 
     sem_post(&table->artLock);
 
-    // Only consider introduced artifacts that are held AND waiting
+    
     int visited[ARTIFACT_COUNT] = {0};
     int inStack[ARTIFACT_COUNT] = {0};
     int parent[ARTIFACT_COUNT];
@@ -91,16 +66,15 @@ int checkAndResolveDeadlock(ArtifactTable *table)
     for (int i = 0; i < ARTIFACT_COUNT; i++)
     {
         if (!introduced[i])
-            continue; // not in game yet
+            continue; 
         if (holder[i] == ARTIFACT_HOLDER_NONE)
-            continue; // free
+            continue; 
         if (waitingFor[i] == -1)
-            continue; // not waiting for anything
+            continue; 
         if (visited[i])
             continue;
 
-        // Temporarily wire the snapshot into the table entries for DFS
-        // (DFS reads table->entries[].waitingFor directly)
+        
         cycleStart = dfs(table, i, visited, inStack, parent);
         if (cycleStart != -1)
             break;
@@ -108,15 +82,15 @@ int checkAndResolveDeadlock(ArtifactTable *table)
 
     if (cycleStart == -1)
     {
-        return 0; // no deadlock
+        return 0; 
     }
 
-    // ── Deadlock detected ──────────────────────────────────────────────────
+    
     cout << "[DeadlockMonitor] Circular wait detected involving artifact "
          << cycleStart << " (" << table->entries[cycleStart].name << ")." << endl;
     printArtifactTable(table);
 
-    // Resolution: force-release the artifact at cycleStart
+    
     int victim = forceReleaseArtifact(table, cycleStart);
 
     if (victim == ARTIFACT_HOLDER_NONE)
@@ -141,9 +115,7 @@ int checkAndResolveDeadlock(ArtifactTable *table)
     return 1;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// deadlockMonitorThread — runs inside the Arbiter process
-// ─────────────────────────────────────────────────────────────────────────────
+
 void *deadlockMonitorThread(void *arg)
 {
     DeadlockMonitorArg *marg = (DeadlockMonitorArg *)arg;
@@ -154,7 +126,7 @@ void *deadlockMonitorThread(void *arg)
 
     while (!(*stopFlag))
     {
-        sleep(1); // check every second
+        sleep(1); 
 
         if (*stopFlag)
             break;

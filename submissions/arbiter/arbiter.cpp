@@ -17,30 +17,21 @@
 
 using namespace std;
 
-// ─────────────────────────────────────────────
-// Roll number: 0620
-//   Full number used as seed  : 620
-//   Last 2 digits             : 20   → enemy base HP offset
-//   Last digit                : 0    → player damage offset  (0 + 10 = 10)
-//   Second-last digit         : 2    → enemy  damage offset  (2 + 10 = 12)
-// ─────────────────────────────────────────────
+
 const int ROLL_NUMBER = 620;
 const int ROLL_LAST2 = 20;
 const int ROLL_LAST1 = 0;
 const int ROLL_SECOND_LAST = 2;
 
-// ─────────────────────────────────────────────
-// Global pointer so signal handlers can reach state
-// ─────────────────────────────────────────────
+
 static SharedState *g_state = nullptr;
 static pid_t g_aspPid = -1;
 static pid_t g_hipPid = -1;
 static pthread_t g_deadlockThread;
 static volatile int g_deadlockStop = 0;
 void addActionLog(SharedState *state, const char *text);
-// ─────────────────────────────────────────────
-// SIGTERM handler – player chose to quit
-// ─────────────────────────────────────────────
+
+
 void handleSigterm(int sig)
 {
     (void)sig;
@@ -71,14 +62,8 @@ void handleSigalrm(int sig)
         cout << "[Arbiter] Ultimate ended after 10 seconds. ASP resumed." << endl;
     }
 }
-// ─────────────────────────────────────────────
-// SIGALRM handler – used for Ultimate Ability 10-second window expiry
-// (stub: full implementation comes with signals section)
-// ─────────────────────────────────────────────
 
-// ─────────────────────────────────────────────
-// Helpers: random in range [lo, hi]
-// ─────────────────────────────────────────────
+
 static int randRange(int lo, int hi)
 {
     return lo + rand() % (hi - lo + 1);
@@ -246,7 +231,7 @@ void removeWeaponToStorage(SharedState *state, PlayerInventory &inv, int weaponI
     inv.weapons[weaponIndex].active = 0;
     inv.weapons[weaponIndex].startSlot = -1;
 
-    // Swapped out of active inventory, so release artifact lock.
+    
     releaseArtifactIfNeeded(state, removedWeapon, holder);
 }
 void swapOutEnoughWeapons(SharedState *state, PlayerInventory &inv, int neededSlots, int holder)
@@ -391,7 +376,7 @@ Weapon getRandomDroppedWeapon()
 
 void handleWeaponDrop(SharedState *state, int killingPlayerId, int defeatedEnemyId)
 {
-    // Spec §10: if the enemy held a weapon it does not drop — it disappears.
+    
     if (defeatedEnemyId >= 0 && defeatedEnemyId < state->enemyCount &&
         state->enemies[defeatedEnemyId].hasWeapon == 1)
     {
@@ -509,20 +494,16 @@ void spawnEnemyAt(SharedState *state, int index)
     state->enemies[index].stamina = 0;
     state->enemies[index].alive = 1;
     state->enemies[index].stunned = 0;
-    // 30% chance the enemy carries its own weapon (drops nothing on death)
+    
     state->enemies[index].hasWeapon = (rand() % 100 < 30) ? 1 : 0;
 }
 
-// ─────────────────────────────────────────────
-// Initialize all entities with roll-number-based stats
-// Called after HIP signals partySizeSelected
-// ─────────────────────────────────────────────
+
 void initEntities(SharedState *state)
 {
     srand(ROLL_NUMBER);
 
-    // Enemy count rolled first — immediately after srand so it always
-    // consumes the same RNG position regardless of party size.
+    
     int enemyCount = randRange(2, 9);
     state->enemyCount = enemyCount;
 
@@ -538,17 +519,16 @@ void initEntities(SharedState *state)
         state->players[i].id = i;
         state->players[i].maxHp = hp;
         state->players[i].hp = hp;
-        state->players[i].damage = ROLL_LAST1 + 10; // 10
+        state->players[i].damage = ROLL_LAST1 + 10; 
         state->players[i].speed = playerSpeed;
         state->players[i].stamina = 0;
         state->players[i].alive = 1;
         initializeInventory(state->players[i].inventory);
-        // Players start with empty inventories.
-        // Weapons enter play exclusively through enemy drops (spec §6, §10).
+        
+        
     }
 
-    // Enemy count already rolled above.
-
+    
     for (int i = 0; i < enemyCount; i++)
     {
         spawnEnemyAt(state, i);
@@ -581,20 +561,16 @@ void initEntities(SharedState *state)
     }
 }
 
-// ─────────────────────────────────────────────
-// Check win / lose conditions
-// Returns GAME_WIN, GAME_LOSE, or GAME_RUNNING
-// Must be called with stateLock held
-// ─────────────────────────────────────────────
+
 int checkGameOver(SharedState *state)
 {
-    // Win: 10 enemies killed total
+    
     if (state->enemiesKilled >= 10)
     {
         return GAME_WIN;
     }
 
-    // Lose: all players dead
+    
     int anyAlive = 0;
     for (int i = 0; i < state->playerCount; i++)
     {
@@ -613,7 +589,7 @@ int checkGameOver(SharedState *state)
 }
 void addActionLog(SharedState *state, const char *text)
 {
-    // Shift entries down — index 0 is always the newest entry
+    
     for (int i = 9; i > 0; i--)
     {
         strcpy(state->actionLog[i], state->actionLog[i - 1]);
@@ -627,10 +603,8 @@ void addActionLog(SharedState *state, const char *text)
         state->actionLogCount++;
     }
 }
-// ─────────────────────────────────────────────
-// Process an action request that arrived via actionReady semaphore
-// Must be called WITHOUT stateLock held (we acquire it inside)
-// ─────────────────────────────────────────────
+
+
 int playerHasSolarAndLunar(SharedState *state, int pid)
 {
     int hasSolar = 0;
@@ -683,10 +657,7 @@ void processAction(SharedState *state)
                      << " for " << dmg << " dmg."
                      << " Enemy HP now: " << state->enemies[tid].hp << endl;
 
-                // ── Stun chance (spec §5): 25% on a strike that doesn't kill.
-                // IMPORTANT: use stunTargetId, not currentTurnId. During a player's
-                // turn, currentTurnId is the player id, so using it would stun the
-                // wrong enemy or no enemy at all.
+                
                 if (state->enemies[tid].hp > 0 && rand() % 100 < 25)
                 {
                     state->stunTargetId = tid;
@@ -697,7 +668,7 @@ void processAction(SharedState *state)
 
                     cout << "[Arbiter] Enemy " << tid << " stunned!" << endl;
 
-                    // Release shared-memory lock before signal delivery.
+                    
                     sem_post(&state->stateLock);
                     kill(g_aspPid, SIGUSR1);
                     sem_wait(&state->stateLock);
@@ -971,12 +942,7 @@ void processAction(SharedState *state)
     sem_post(&state->actionDone);
 }
 
-// ─────────────────────────────────────────────
-// Arrival-time scheduler helpers
-// Must be called with stateLock held.
-// This follows the rubric rule: stamina fills concurrently, but the first
-// entity whose remaining stamina finishes earliest gets the serial turn.
-// ─────────────────────────────────────────────
+
 int ceilDivPositive(int numerator, int denominator)
 {
     if (numerator <= 0)
@@ -984,30 +950,14 @@ int ceilDivPositive(int numerator, int denominator)
     return (numerator + denominator - 1) / denominator;
 }
 
-// ─────────────────────────────────────────────
-// findReadyActor — arrival-time based selection (spec Section 3)
-//
-// Instead of checking who is full RIGHT NOW (which always gives players
-// priority because they fill faster), we compute ticks_to_full for every
-// entity and pick whoever fills soonest.
-//
-// Formula:  ticks = ceil((max_stamina - current_stamina) / speed)
-//                 = (gap + speed - 1) / speed       [integer ceiling]
-//
-// If an entity is ALREADY full (gap <= 0), ticks = 0 — it acts immediately.
-// Tie-break: lower ticks wins; among equal ticks, players before enemies,
-// lower id first within each group.
-//
-// Returns 1 if an actor was found, 0 if no alive entities exist.
-// Must be called with stateLock held.
-// ─────────────────────────────────────────────
+
 int findReadyActor(SharedState *state, int &outType, int &outId)
 {
     int bestTicks = INT32_MAX;
     outType = ENTITY_NONE;
     outId = -1;
 
-    // Players
+    
     for (int i = 0; i < state->playerCount; i++)
     {
         if (state->players[i].alive == 0)
@@ -1024,7 +974,7 @@ int findReadyActor(SharedState *state, int &outType, int &outId)
         }
     }
 
-    // Enemies — only beat a player if strictly fewer ticks (players win ties)
+    
     for (int i = 0; i < state->enemyCount; i++)
     {
         if (state->enemies[i].alive == 0)
@@ -1103,11 +1053,7 @@ void advanceStaminaBy(SharedState *state, int seconds)
     }
 }
 
-// ─────────────────────────────────────────────
-// Wait for an action on the actionReady semaphore
-// with a timeout of timeoutSecs seconds.
-// Returns 1 if action arrived, 0 if timed out.
-// ─────────────────────────────────────────────
+
 int waitForActionWithTimeout(SharedState *state, int timeoutSecs)
 {
     struct timespec ts;
@@ -1118,23 +1064,19 @@ int waitForActionWithTimeout(SharedState *state, int timeoutSecs)
 
     if (ret == 0)
     {
-        return 1; // got action
+        return 1; 
     }
 
     if (errno == ETIMEDOUT)
     {
-        return 0; // timed out
+        return 0; 
     }
 
-    // Other error (e.g. interrupted) — treat as timeout
+    
     return 0;
 }
 
-// ─────────────────────────────────────────────
-// Handle an enemy's turn
-// Signals ASP (via currentTurnType/Id) and waits 3 seconds
-// If no response, auto-skip
-// ─────────────────────────────────────────────
+
 int isGameRunning(SharedState *state)
 {
     sem_wait(&state->stateLock);
@@ -1147,19 +1089,19 @@ void handleEnemyTurn(SharedState *state, int enemyId)
 {
     cout << "[Arbiter] Enemy " << enemyId << "'s turn." << endl;
 
-    // Set turn so ASP knows who to move
+    
     sem_wait(&state->stateLock);
     state->request.ready = 0;
     state->currentTurnType = ENTITY_ENEMY;
     state->currentTurnId = enemyId;
     sem_post(&state->stateLock);
 
-    // Wait up to 3 seconds for ASP to submit an action
+    
     int got = waitForActionWithTimeout(state, 3);
 
     if (got == 0)
     {
-        // Timeout: auto-skip
+        
         cout << "[Arbiter] Enemy " << enemyId
              << " timed out. Auto-skip applied." << endl;
 
@@ -1179,11 +1121,6 @@ void handleEnemyTurn(SharedState *state, int enemyId)
     }
 }
 
-// ─────────────────────────────────────────────
-// Handle a player's turn
-// Sets currentTurn so HIP knows who to prompt,
-// then waits on actionReady (no timeout for players)
-// ─────────────────────────────────────────────
 
 void handlePlayerTurn(SharedState *state, int playerId)
 {
@@ -1194,7 +1131,7 @@ void handlePlayerTurn(SharedState *state, int playerId)
     state->currentTurnId = playerId;
     sem_post(&state->stateLock);
 
-    // Wait indefinitely for player input
+    
     sem_wait(&state->actionReady);
 
     if (isGameRunning(state) == 1)
@@ -1203,26 +1140,7 @@ void handlePlayerTurn(SharedState *state, int playerId)
     }
 }
 
-// ─────────────────────────────────────────────
-// Main scheduling loop
-// ─────────────────────────────────────────────
-// staminaTickerThread removed — stamina is now advanced deterministically
-// inside runGameLoop using arrival-time logic (spec Section 3).
-// The old background thread caused races: it would tick stamina while the
-// scheduler was computing the next actor, producing incorrect turn order.
-// ─────────────────────────────────────────────
-// runGameLoop — arrival-time scheduler (spec Section 3)
-//
-// How it works:
-//   1. Find who acts next (and how many ticks away they are).
-//   2. Sleep that many seconds while advancing ALL entity staminas.
-//   3. Signal that actor; wait for their action (3s timeout for enemies).
-//   4. Arbiter applies action, resets actor's stamina, loops back to 1.
-//
-// This guarantees enemies always get turns proportional to their speed.
-// A fast enemy (SPD=30) fills 150 stamina in 5 ticks; a slow one (SPD=10)
-// takes 15 ticks. Players (SPD=50, max=100) take 2 ticks.
-// ─────────────────────────────────────────────
+
 void runGameLoop(SharedState *state)
 {
     cout << "[Arbiter] Game loop started." << endl;
@@ -1241,25 +1159,21 @@ void runGameLoop(SharedState *state)
             break;
         }
 
-        // ── Process any completed drop choice ─────────────────────────────
+        
         processDropChoice(state);
 
-        // ── If a drop is waiting for player Y/N, block on dropAnswered ────
-        // Release stateLock first so HIP can freely write dropChoice and
-        // stamina continues to be readable by the render thread.
-        // sem_timedwait replaces the old 100ms spin-poll — the Arbiter wakes
-        // instantly when HIP posts dropAnswered, with no busy-waiting.
+        
         if (state->dropPending == 1 && state->dropChoice == -1)
         {
             sem_post(&state->stateLock);
 
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += 1; // wake at most every 1s to re-check game status
+            ts.tv_sec += 1; 
             sem_timedwait(&state->dropAnswered, &ts);
             continue;
         }
-        // ── Find next actor and ticks needed ──────────────────────────────
+        
         {
             int bestTicks = INT32_MAX;
 
@@ -1302,7 +1216,7 @@ void runGameLoop(SharedState *state)
             continue;
         }
 
-        // ── Advance stamina by ticksToWait seconds (1 real second per tick) ─
+        
         for (int t = 0; t < ticksToWait; t++)
         {
             sleep(1);
@@ -1318,7 +1232,7 @@ void runGameLoop(SharedState *state)
             sem_post(&state->stateLock);
         }
 
-        // ── Dispatch turn ─────────────────────────────────────────────────
+        
         if (actorType == ENTITY_PLAYER)
         {
             handlePlayerTurn(state, actorId);
@@ -1332,34 +1246,29 @@ void runGameLoop(SharedState *state)
 gameOver:
     cout << "[Arbiter] Game loop ended. Status: " << g_state->gameStatus << endl;
 }
-// ─────────────────────────────────────────────
-// Graceful shutdown
-// ─────────────────────────────────────────────
+
+
 void shutdownGame(SharedState *state)
 {
     cout << "[Arbiter] Shutting down..." << endl;
 
-    // Wake up any threads blocked on actionDone / actionReady so they can exit
+    
     sem_post(&state->actionDone);
     sem_post(&state->actionReady);
-    // Unblock the game loop if it is waiting on a pending drop answer
+    
     sem_post(&state->dropAnswered);
 
-    // ── Close relevant channels for each NPC thread (spec §2 lifecycle) ──
-    // For every enemy thread that was alive, drain actionReady once so the
-    // thread is never left blocked on a semaphore it can no longer escape.
-    // npcThreadAlive[] is set to 0 by each thread on exit; any still-1 entry
-    // here means the thread hasn't exited yet and may be waiting.
+    
     for (int i = 0; i < MAX_ENEMIES; i++)
     {
         if (state->npcThreadAlive[i] == 1)
         {
-            sem_post(&state->actionDone); // unblock any sem_wait inside ASP
+            sem_post(&state->actionDone); 
             cout << "[Arbiter] Closing channel for NPC thread " << i << endl;
         }
     }
 
-    // If HIP is running, terminate it
+    
     if (g_hipPid > 0)
     {
         kill(g_hipPid, SIGTERM);
@@ -1367,7 +1276,7 @@ void shutdownGame(SharedState *state)
         cout << "[Arbiter] HIP terminated." << endl;
     }
 
-    // If ASP is running, terminate it
+    
     if (g_aspPid > 0)
     {
         kill(g_aspPid, SIGTERM);
@@ -1375,9 +1284,9 @@ void shutdownGame(SharedState *state)
         cout << "[Arbiter] ASP terminated." << endl;
     }
 
-    sleep(1); // Give HIP time to read final state
+    sleep(1); 
 
-    // ── Stop the deadlock monitor thread ─────────────────────────────
+    
     g_deadlockStop = 1;
     pthread_join(g_deadlockThread, nullptr);
 
@@ -1385,18 +1294,16 @@ void shutdownGame(SharedState *state)
     cout << "[Arbiter] Shared memory destroyed. Goodbye." << endl;
 }
 
-// ─────────────────────────────────────────────
-// main
-// ─────────────────────────────────────────────
+
 int main()
 {
     cout << "[Arbiter] Starting..." << endl;
 
-    // Register signal handlers
+    
     signal(SIGTERM, handleSigterm);
     signal(SIGALRM, handleSigalrm);
 
-    // Create and initialize shared memory
+    
     SharedState *state = createSharedMemory();
 
     if (state == nullptr)
@@ -1407,11 +1314,11 @@ int main()
 
     g_state = state;
 
-    // Initialize semaphores and zero the state
+    
     sem_init(&state->stateLock, 1, 1);
     sem_init(&state->actionReady, 1, 0);
     sem_init(&state->actionDone, 1, 0);
-    sem_init(&state->dropAnswered, 1, 0); // HIP posts when Y/N choice is made
+    sem_init(&state->dropAnswered, 1, 0); 
 
     memset(&state->inputBuffer, 0, sizeof(InputBuffer));
     state->inputBuffer.playerId = -1;
@@ -1448,7 +1355,7 @@ int main()
         state->actionLog[i][0] = '\0';
     }
 
-    // ── Initialise artifact table inside shared memory (spec Section 7) ──
+    
     initArtifactTable(&state->artifactTable);
 
     g_hipPid = fork();
@@ -1470,12 +1377,12 @@ int main()
     cout << "[Arbiter] HIP forked with PID " << g_hipPid << endl;
     cout << "[Arbiter] Shared memory created. Waiting for HIP to select party size..." << endl;
 
-    // ── Wait for HIP to set party size ──────────────────────────────
+    
     while (state->partySizeSelected == 0)
     {
         usleep(100000);
 
-        // Check if game was quit before even starting
+        
         if (state->gameStatus == GAME_QUIT)
         {
             shutdownGame(state);
@@ -1485,7 +1392,7 @@ int main()
 
     cout << "[Arbiter] Party size selected: " << state->partySize << endl;
 
-    // ── Initialize entities with roll-number-based stats ────────────
+    
     initEntities(state);
     g_aspPid = fork();
 
@@ -1506,16 +1413,16 @@ int main()
 
     cout << "[Arbiter] ASP forked with PID " << g_aspPid << endl;
 
-    // ── Start deadlock monitor thread (spec Section 7) ───────────────────
+    
     static DeadlockMonitorArg g_deadlockArg;
     g_deadlockArg.table = &state->artifactTable;
     g_deadlockArg.stopFlag = &g_deadlockStop;
     pthread_create(&g_deadlockThread, nullptr, deadlockMonitorThread, &g_deadlockArg);
 
-    // ── Run the main scheduling loop ─────────────────────────────────
+    
     runGameLoop(state);
 
-    // ── Shutdown ─────────────────────────────────────────────────────
+    
     shutdownGame(state);
 
     return 0;

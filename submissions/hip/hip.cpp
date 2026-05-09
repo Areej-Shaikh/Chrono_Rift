@@ -294,11 +294,9 @@ void drawInventoryPanel(sf::RenderWindow &window,
     const float margin = 20.0f;
     const float contentTop = 80.0f;
     const float headerHeight = 35.0f;
-    const float logHeight = std::min(180.0f, winH * 0.22f);
-    float availableHeight = winH - contentTop - headerHeight - logHeight - margin * 4.0f;
-    float topPanelHeight = std::max(170.0f, availableHeight);
-    float bottomY = contentTop + topPanelHeight + margin;
-    float bottomH = std::max(120.0f, winH - bottomY - margin);
+   float topPanelHeight = 340.0f;
+float bottomY = contentTop + topPanelHeight + margin;
+float bottomH = 320.0f;
     float logWidth = std::min(420.0f, (winW - 60.0f) * 0.35f);
     float panelX = 20.0f + logWidth + 20.0f;
     float panelY = bottomY;
@@ -311,10 +309,10 @@ void drawInventoryPanel(sf::RenderWindow &window,
         panelX = winW - panelW - 20.0f;
     }
 
-    drawBox(window, panelX - 5.0f, panelY - 5.0f, panelW + 10.0f, panelH + 10.0f, "INVENTORY", font);
+drawBox(window, panelX, panelY, panelW, panelH, "INVENTORY", font);
 
-    float contentX = panelX + 10.0f;
-    float contentY = panelY + 20.0f;
+float contentX = panelX + 12.0f;
+float contentY = panelY + 28.0f;
     float lineHeight = 22.0f;
 
     sf::Text text;
@@ -322,11 +320,8 @@ void drawInventoryPanel(sf::RenderWindow &window,
     text.setCharacterSize(16);
     text.setFillColor(sf::Color::White);
 
-    text.setPosition(contentX, contentY);
-    text.setString("[ INVENTORY ]");
-    window.draw(text);
-
-    contentY += 26.0f;
+   
+    contentY += 18.0f;
 
     if (menuLines != nullptr)
     {
@@ -349,14 +344,14 @@ void drawInventoryPanel(sf::RenderWindow &window,
             state->players[selectedPlayer].inventory.weaponCount,
             state->players[selectedPlayer].inventory.storageCount);
 
-    text.setPosition(contentX, contentY + 20);
-    text.setString(invInfo);
-    window.draw(text);
-    contentY += 50;
+   text.setPosition(contentX, contentY + 8);
+text.setString(invInfo);
+window.draw(text);
+contentY += 45;
 
     PlayerInventory &inv = state->players[selectedPlayer].inventory;
 
-    const float slotSize = 18.0f;
+    const float slotSize = 22.0f;
     const float slotGap = 6.0f;
     const float availableWidth = panelW - 10.0f;
     int slotsPerRow = (int)((availableWidth + slotGap) / (slotSize + slotGap));
@@ -374,7 +369,7 @@ void drawInventoryPanel(sf::RenderWindow &window,
         int col = i % slotsPerRow;
 
         sf::RectangleShape slot(sf::Vector2f(slotSize, slotSize));
-        slot.setPosition(contentX + col * (slotSize + slotGap), contentY + row * (slotSize + slotGap));
+       slot.setPosition(contentX + col * (slotSize + slotGap), contentY + 8 + row * (slotSize + slotGap));
 
         if (inv.slots[i] == -1)
         {
@@ -461,7 +456,7 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
     const float logHeight = std::min(180.0f, winH * 0.22f);
     const float contentTop = 80.0f;
     const float availableHeight = winH - contentTop - headerHeight - logHeight - margin * 4.0f;
-    const float panelHeight = std::max(170.0f, availableHeight);
+    const float panelHeight = std::min(340.0f, availableHeight);
 
     sf::RectangleShape headerBox;
     headerBox.setSize(sf::Vector2f(winW - 40, headerHeight));
@@ -483,10 +478,10 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
     float enemyW = partyW;
     float enemyH = panelHeight;
 
-    drawBox(window, partyX, partyY, partyW, partyH, "PARTY", font);
-    drawBox(window, enemyX, enemyY, enemyW, enemyH, "VOID WRAITHS", font);
+    drawBox(window, partyX, partyY, partyW, partyH, "PLAYERS", font);
+    drawBox(window, enemyX, enemyY, enemyW, enemyH, "ENEMIES", font);
 
-    float playerRowHeight = std::max(38.0f, (partyH - 60.0f) / (float)std::max(1, state->playerCount));
+    float playerRowHeight = 85.0f;
     float playerHpWidth = std::min(220.0f, partyW * 0.36f);
     float playerStaminaWidth = std::min(150.0f, partyW - playerHpWidth - 120.0f);
     playerStaminaWidth = std::max(70.0f, playerStaminaWidth);
@@ -580,7 +575,8 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
         }
     }
 
-    float enemyRowHeight = std::max(30.0f, (enemyH - 50.0f) / (float)std::max(1, state->enemyCount));
+   float enemyRowHeight = std::max(30.0f,
+    (enemyH - 50.0f) / state->enemyCount);
     float enemyHpWidth = std::min(220.0f, enemyW * 0.40f);
     float enemyStaminaWidth = std::min(160.0f, enemyW - enemyHpWidth - 110.0f);
     enemyStaminaWidth = std::max(70.0f, enemyStaminaWidth);
@@ -658,11 +654,11 @@ void drawBattleView(sf::RenderWindow &window, sf::Font &font, SharedState *state
     }
 
     float bottomY = contentTop + panelHeight + margin;
-    float bottomH = std::max(120.0f, winH - bottomY - margin);
+    float bottomH = 300.0f;
     float logW = std::min(420.0f, (winW - margin * 3.0f) * 0.35f);
     float logX = margin;
     float logY = bottomY;
-    float logH = bottomH;
+    float logH = bottomH - 20.0f;
 
     drawBox(window, logX, logY, logW, logH, "ACTION LOG / WEAPON DROPS", font);
 
@@ -1210,12 +1206,12 @@ int showWeaponSelectMenu(sf::RenderWindow &window, sf::Font &font,
 
     while (window.isOpen())
     {
-        // ── Snapshot inventory under lock ─────────────────────────────────
+        
         sem_wait(&state->stateLock);
         PlayerInventory inv = state->players[playerId].inventory;
         sem_post(&state->stateLock);
 
-        // Build a list of active weapon indices
+        
         int activeIdx[MAX_WEAPONS];
         int activeCount = 0;
         for (int i = 0; i < inv.weaponCount; i++)
@@ -1226,7 +1222,7 @@ int showWeaponSelectMenu(sf::RenderWindow &window, sf::Font &font,
 
         if (activeCount == 0)
         {
-            // Nothing to pick — treat as cancel
+            
             window.setActive(false);
             resumeRendering();
             return -1;
@@ -1272,13 +1268,13 @@ int showWeaponSelectMenu(sf::RenderWindow &window, sf::Font &font,
                 {
                     window.setActive(false);
                     resumeRendering();
-                    return activeIdx[selected]; // weapon index in inventory.weapons[]
+                    return activeIdx[selected]; 
                 }
                 else if (event.key.code == sf::Keyboard::Escape)
                 {
                     window.setActive(false);
                     resumeRendering();
-                    return -1; // player cancelled
+                    return -1; 
                 }
             }
         }
@@ -1286,7 +1282,7 @@ int showWeaponSelectMenu(sf::RenderWindow &window, sf::Font &font,
         window.clear(sf::Color::Black);
         drawBattleView(window, font, state, nullptr);
 
-        // ── Draw weapon list ──────────────────────────────────────────────
+        
         float x = 35;
         float y = 670;
 
@@ -1344,7 +1340,7 @@ int showStorageSelectMenu(sf::RenderWindow &window, sf::Font &font,
         {
             window.setActive(false);
             resumeRendering();
-            return -1; // nothing in storage
+            return -1; 
         }
 
         if (selected >= inv.storageCount)
@@ -1387,7 +1383,7 @@ int showStorageSelectMenu(sf::RenderWindow &window, sf::Font &font,
                 {
                     window.setActive(false);
                     resumeRendering();
-                    return selected; // storage index
+                    return selected; 
                 }
                 else if (event.key.code == sf::Keyboard::Escape)
                 {
@@ -1441,18 +1437,7 @@ int showStorageSelectMenu(sf::RenderWindow &window, sf::Font &font,
     return -1;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// handlePlayerTurnInput  (replaces the old version)
-//
-// Flow:
-//   1. Show action menu → get actionType
-//   2a. Strike / Exhaust        → show enemy target menu → targetId
-//   2b. Use Weapon              → show weapon select menu → weaponIndex
-//                                 then show enemy target menu → targetId
-//   2c. Swap In                 → show storage select menu → storageIndex
-//   2d. Heal / Ultimate / Skip  → no secondary menu needed
-//   3. Write to input buffer
-// ─────────────────────────────────────────────────────────────────────────────
+
 void handlePlayerTurnInput(sf::RenderWindow &window, sf::Font &font,
                            SharedState *state, int playerId)
 {
@@ -1476,22 +1461,22 @@ void handlePlayerTurnInput(sf::RenderWindow &window, sf::Font &font,
     }
     else if (actionType == ACTION_USE_WEAPON)
     {
-        // Step 1: pick which weapon to use
+        
         int weaponIndex = showWeaponSelectMenu(window, font, state, playerId);
 
         if (weaponIndex == -1)
         {
-            // Player cancelled or no weapons — fall back to skip
+            
             actionType = ACTION_SKIP;
             targetType = ENTITY_NONE;
             targetId = -1;
         }
         else
         {
-            // Step 2: pick which enemy to hit
+            
             targetId = showEnemyTargetMenuOnBattleScreen(window, font, state);
-            // targetType carries the weapon index so the Arbiter knows
-            // which inventory slot to use for damage (matches processAction).
+            
+            
             targetType = weaponIndex;
         }
     }
@@ -1501,7 +1486,7 @@ void handlePlayerTurnInput(sf::RenderWindow &window, sf::Font &font,
 
         if (storageIndex == -1)
         {
-            // Nothing in storage or player cancelled — fall back to skip
+            
             actionType = ACTION_SKIP;
             targetType = ENTITY_NONE;
             targetId = -1;
@@ -1512,7 +1497,7 @@ void handlePlayerTurnInput(sf::RenderWindow &window, sf::Font &font,
             targetType = ENTITY_NONE;
         }
     }
-    // ACTION_HEAL, ACTION_ULTIMATE, ACTION_SKIP need no secondary menu.
+    
 
     writeInputBuffer(state, playerId, actionType, targetType, targetId);
 
@@ -1534,7 +1519,7 @@ int main()
     }
 
     cout << "HIP attached to shared memory." << endl;
-    sf::RenderWindow window(sf::VideoMode(1100, 800), "Chrono Rift - HIP");
+    sf::RenderWindow window(sf::VideoMode(1100, 900), "Chrono Rift - HIP");
     window.setActive(false);
 
     sf::Font font;
@@ -1618,7 +1603,7 @@ int main()
 
         sem_post(&state->stateLock);
 
-        // ── Weapon drop decision ─────────────────────────────
+        
         if (dropPending == 1 &&
             waitingChoice == 1)
         {
@@ -1647,7 +1632,7 @@ int main()
                             sem_wait(&state->stateLock);
                             state->dropChoice = 1;
                             sem_post(&state->stateLock);
-                            sem_post(&state->dropAnswered); // wake Arbiter immediately
+                            sem_post(&state->dropAnswered); 
 
                             answered = true;
                         }
@@ -1656,7 +1641,7 @@ int main()
                             sem_wait(&state->stateLock);
                             state->dropChoice = 0;
                             sem_post(&state->stateLock);
-                            sem_post(&state->dropAnswered); // wake Arbiter immediately
+                            sem_post(&state->dropAnswered); 
 
                             answered = true;
                         }
@@ -1691,7 +1676,7 @@ int main()
         }
         if (isPlayerTurn == 1)
         {
-            // ── Normal turn input ───────────────────────────────
+            
             if (lastHandledTurnType != ENTITY_PLAYER ||
                 lastHandledTurnId != activePlayerId)
             {

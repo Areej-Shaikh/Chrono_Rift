@@ -4,35 +4,31 @@
 
 using namespace std;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// initArtifactTable
-// ─────────────────────────────────────────────────────────────────────────────
+
 void initArtifactTable(ArtifactTable *table)
 {
-    sem_init(&table->artLock, 1, 1); // shared=1 (cross-process), initial=1
+    sem_init(&table->artLock, 1, 1); 
 
-    // Solar Core
+    
     table->entries[ARTIFACT_SOLAR_CORE].introduced = 1;
     table->entries[ARTIFACT_SOLAR_CORE].holder = ARTIFACT_HOLDER_NONE;
     table->entries[ARTIFACT_SOLAR_CORE].waitingFor = -1;
     strncpy(table->entries[ARTIFACT_SOLAR_CORE].name, "Solar Core", 29);
 
-    // Lunar Blade
+    
     table->entries[ARTIFACT_LUNAR_BLADE].introduced = 1;
     table->entries[ARTIFACT_LUNAR_BLADE].holder = ARTIFACT_HOLDER_NONE;
     table->entries[ARTIFACT_LUNAR_BLADE].waitingFor = -1;
     strncpy(table->entries[ARTIFACT_LUNAR_BLADE].name, "Lunar Blade", 29);
 
-    // Eclipse Relic — not yet in the world
+    
     table->entries[ARTIFACT_ECLIPSE_RELIC].introduced = 0;
     table->entries[ARTIFACT_ECLIPSE_RELIC].holder = ARTIFACT_HOLDER_NONE;
     table->entries[ARTIFACT_ECLIPSE_RELIC].waitingFor = -1;
     strncpy(table->entries[ARTIFACT_ECLIPSE_RELIC].name, "Eclipse Relic", 29);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// acquireArtifact
-// ─────────────────────────────────────────────────────────────────────────────
+
 int acquireArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
 {
     if (artifactId < 0 || artifactId >= ARTIFACT_COUNT)
@@ -44,9 +40,8 @@ int acquireArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
 
     if (!entry.introduced || entry.holder != ARTIFACT_HOLDER_NONE)
     {
-        // Already held — record that this holder is waiting for it
-        // so the deadlock detector can see the edge.
-        // Find any artifact this holder already owns and mark waitingFor.
+        
+        
         for (int i = 0; i < ARTIFACT_COUNT; i++)
         {
             if (table->entries[i].holder == holderEncoded)
@@ -59,9 +54,9 @@ int acquireArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
         return 0;
     }
 
-    // Artifact is free — acquire it
+    
     entry.holder = holderEncoded;
-    // Clear any waitingFor this holder had on other entries (they got what they wanted)
+    
     for (int i = 0; i < ARTIFACT_COUNT; i++)
     {
         if (i != artifactId && table->entries[i].holder == holderEncoded)
@@ -74,9 +69,7 @@ int acquireArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
     return 1;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// releaseArtifact
-// ─────────────────────────────────────────────────────────────────────────────
+
 int releaseArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
 {
     if (artifactId < 0 || artifactId >= ARTIFACT_COUNT)
@@ -99,9 +92,7 @@ int releaseArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
     return 1;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// introduceEclipseRelic
-// ─────────────────────────────────────────────────────────────────────────────
+
 void introduceEclipseRelic(ArtifactTable *table)
 {
     sem_wait(&table->artLock);
@@ -113,9 +104,7 @@ void introduceEclipseRelic(ArtifactTable *table)
     sem_post(&table->artLock);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// holderHasArtifact
-// ─────────────────────────────────────────────────────────────────────────────
+
 int holderHasArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
 {
     if (artifactId < 0 || artifactId >= ARTIFACT_COUNT)
@@ -128,9 +117,7 @@ int holderHasArtifact(ArtifactTable *table, int artifactId, int holderEncoded)
     return result;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// forceReleaseArtifact — called by deadlock resolver
-// ─────────────────────────────────────────────────────────────────────────────
+
 int forceReleaseArtifact(ArtifactTable *table, int artifactId)
 {
     if (artifactId < 0 || artifactId >= ARTIFACT_COUNT)
@@ -142,7 +129,7 @@ int forceReleaseArtifact(ArtifactTable *table, int artifactId)
     table->entries[artifactId].holder = ARTIFACT_HOLDER_NONE;
     table->entries[artifactId].waitingFor = -1;
 
-    // Also clear waitingFor on any other entry this victim holds
+    
     for (int i = 0; i < ARTIFACT_COUNT; i++)
     {
         if (i != artifactId && table->entries[i].holder == victim)
@@ -155,9 +142,7 @@ int forceReleaseArtifact(ArtifactTable *table, int artifactId)
     return victim;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// printArtifactTable
-// ─────────────────────────────────────────────────────────────────────────────
+
 void printArtifactTable(ArtifactTable *table)
 {
     sem_wait(&table->artLock);
