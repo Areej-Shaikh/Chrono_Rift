@@ -41,20 +41,20 @@ struct PlayerInventory
 const int PLAYER_MAX_STAMINA = 100;
 const int ENEMY_MAX_STAMINA = 150;
 
-const int ENTITY_NONE   = 0;
+const int ENTITY_NONE = 0;
 const int ENTITY_PLAYER = 1;
-const int ENTITY_ENEMY  = 2;
+const int ENTITY_ENEMY = 2;
 
-const int ACTION_NONE    = 0;
-const int ACTION_STRIKE  = 1;
-const int ACTION_SKIP    = 2;
+const int ACTION_NONE = 0;
+const int ACTION_STRIKE = 1;
+const int ACTION_SKIP = 2;
 const int ACTION_EXHAUST = 3;
-const int ACTION_HEAL    = 4;
+const int ACTION_HEAL = 4;
 
 const int GAME_RUNNING = 0;
-const int GAME_WIN     = 1;
-const int GAME_LOSE    = 2;
-const int GAME_QUIT    = 3;
+const int GAME_WIN = 1;
+const int GAME_LOSE = 2;
+const int GAME_QUIT = 3;
 
 #define ACTION_ULTIMATE 7
 
@@ -81,8 +81,8 @@ struct Enemy
     int stamina;
     int alive;
     int stunned;
-    int hasWeapon; 
-    Weapon heldWeapon; 
+    int hasWeapon;
+    Weapon heldWeapon;
 };
 
 struct ActionRequest
@@ -110,18 +110,19 @@ struct SharedState
     sem_t stateLock;    // Guards all shared state reads/writes
     sem_t actionReady;  // Signals Arbiter that an action is queued
     sem_t actionDone;   // Signals actor that Arbiter has applied the action
+    sem_t dropAnswered; // HIP posts this when player Y/N choice is written
 
     // ── Enemy thread death notification ───────────────────────────────────
     // pthread_cond_timedwait requires a pthread_mutex_t — it cannot use a
     // sem_t. This mutex is ONLY used together with threadCleanupCond.
     // It does NOT replace stateLock for general shared-memory protection.
     pthread_mutex_t threadCleanupMutex;
-    pthread_cond_t  threadCleanupCond;
-int dropPending;
-Weapon pendingDrop;
-int dropPlayerId;
-int dropEnemyId;
-int dropChoice;   // -1 waiting, 0 reject, 1 accept
+    pthread_cond_t threadCleanupCond;
+    int dropPending;
+    Weapon pendingDrop;
+    int dropPlayerId;
+    int dropEnemyId;
+    int dropChoice; // -1 waiting, 0 reject, 1 accept
     // ── Process IDs ──────────────────────────────────────────────────────
     int arbiterPid;
 
@@ -136,7 +137,7 @@ int dropChoice;   // -1 waiting, 0 reject, 1 accept
     int enemyCount;
 
     Player players[MAX_PLAYERS];
-    Enemy  enemies[MAX_ENEMIES];
+    Enemy enemies[MAX_ENEMIES];
 
     int currentTurnType;
     int currentTurnId;
@@ -146,7 +147,7 @@ int dropChoice;   // -1 waiting, 0 reject, 1 accept
     // moment, not the enemy being hit).
     int stunTargetId;
 
-    InputBuffer   inputBuffer;
+    InputBuffer inputBuffer;
     ActionRequest request;
 
     int enemiesKilled;
@@ -162,7 +163,7 @@ int dropChoice;   // -1 waiting, 0 reject, 1 accept
 
     // ── Action log (ring buffer, index 0 = newest) ───────────────────────
     char actionLog[10][100];
-    int  actionLogCount;
+    int actionLogCount;
 
     // ── Artifact system (spec Section 7) ─────────────────────────────────
     ArtifactTable artifactTable;

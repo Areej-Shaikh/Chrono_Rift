@@ -33,7 +33,6 @@ void resumeRendering()
     renderData.renderPaused = 0;
 }
 
-
 void requestQuit(SharedState *state)
 {
     sem_wait(&state->stateLock);
@@ -626,14 +625,14 @@ void drawEndScreen(sf::RenderWindow &window, sf::Font &font, int status)
     window.draw(promptText);
 }
 
-void* renderThreadFunction(void *arg)
+void *renderThreadFunction(void *arg)
 {
-   
-    RenderThreadData *data = (RenderThreadData*)arg;
+
+    RenderThreadData *data = (RenderThreadData *)arg;
     SharedState *state = data->state;
     sf::RenderWindow *window = data->window;
     sf::Font *font = data->font;
- window->setActive(true);
+    window->setActive(true);
     for (int i = 0; i < MAX_PLAYERS; i++)
     {
         data->playerHitFrames[i] = 0;
@@ -649,18 +648,18 @@ void* renderThreadFunction(void *arg)
 
     while (data->running == 1 && window->isOpen())
     {
-       if (data->renderPaused == 1)
-{
-    window->setActive(false);
+        if (data->renderPaused == 1)
+        {
+            window->setActive(false);
 
-    while (data->renderPaused == 1 && data->running == 1)
-    {
-        usleep(30000);
-    }
+            while (data->renderPaused == 1 && data->running == 1)
+            {
+                usleep(30000);
+            }
 
-    window->setActive(true);
-    continue;
-}
+            window->setActive(true);
+            continue;
+        }
 
         sf::Event event;
         while (window->pollEvent(event))
@@ -714,7 +713,7 @@ void* renderThreadFunction(void *arg)
         window->display();
         usleep(50000);
     }
-window->setActive(false);
+    window->setActive(false);
     return NULL;
 }
 
@@ -722,8 +721,8 @@ int showActionMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, Share
 {
     int selected = 0;
     const int optionCount = 7;
-pauseRendering();
-window.setActive(true);
+    pauseRendering();
+    window.setActive(true);
     while (window.isOpen())
     {
         sf::Event event;
@@ -735,8 +734,8 @@ window.setActive(true);
                 window.close();
 
                 requestQuit(state);
-window.setActive(false);
-resumeRendering();
+                window.setActive(false);
+                resumeRendering();
                 return ACTION_SKIP;
             }
 
@@ -746,7 +745,7 @@ resumeRendering();
                 {
                     requestQuit(state);
                     window.setActive(false);
-resumeRendering();
+                    resumeRendering();
                     return ACTION_SKIP;
                 }
                 if (event.key.code == sf::Keyboard::Left || event.key.code == sf::Keyboard::Up)
@@ -767,93 +766,93 @@ resumeRendering();
                         selected = 0;
                     }
                 }
-               else if (event.key.code == sf::Keyboard::Enter)
-{
-    if (selected == 0)
-    {
-        window.setActive(false);
-        resumeRendering();
-        return ACTION_STRIKE;
-    }
-    if (selected == 1)
-    {
-        window.setActive(false);
-        resumeRendering();
-        return ACTION_EXHAUST;
-    }
-    if (selected == 2)
-    {
-        window.setActive(false);
-        resumeRendering();
-        return ACTION_USE_WEAPON;
-    }
-    if (selected == 3)
-    {
-        window.setActive(false);
-        resumeRendering();
-        return ACTION_SWAP_IN;
-    }
-    if (selected == 4)
-    {
-        window.setActive(false);
-        resumeRendering();
-        return ACTION_HEAL;
-    }
-    if (selected == 5)
-    {
-        window.setActive(false);
-        resumeRendering();
-        return ACTION_ULTIMATE;
-    }
+                else if (event.key.code == sf::Keyboard::Enter)
+                {
+                    if (selected == 0)
+                    {
+                        window.setActive(false);
+                        resumeRendering();
+                        return ACTION_STRIKE;
+                    }
+                    if (selected == 1)
+                    {
+                        window.setActive(false);
+                        resumeRendering();
+                        return ACTION_EXHAUST;
+                    }
+                    if (selected == 2)
+                    {
+                        window.setActive(false);
+                        resumeRendering();
+                        return ACTION_USE_WEAPON;
+                    }
+                    if (selected == 3)
+                    {
+                        window.setActive(false);
+                        resumeRendering();
+                        return ACTION_SWAP_IN;
+                    }
+                    if (selected == 4)
+                    {
+                        window.setActive(false);
+                        resumeRendering();
+                        return ACTION_HEAL;
+                    }
+                    if (selected == 5)
+                    {
+                        window.setActive(false);
+                        resumeRendering();
+                        return ACTION_ULTIMATE;
+                    }
 
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_SKIP;
-}
-else if (event.key.code == sf::Keyboard::Num1)
-{
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_STRIKE;
-}
-else if (event.key.code == sf::Keyboard::Num2)
-{
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_EXHAUST;
-}
-else if (event.key.code == sf::Keyboard::Num3)
-{
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_USE_WEAPON;
-}
-else if (event.key.code == sf::Keyboard::Num4)
-{
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_SWAP_IN;
-}
-else if (event.key.code == sf::Keyboard::Num5)
-{
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_HEAL;
-}
-else if (event.key.code == sf::Keyboard::Num6)
-{
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_ULTIMATE;
-}
-else if (event.key.code == sf::Keyboard::Num7)
-{
-    window.setActive(false);
-    resumeRendering();
-    return ACTION_SKIP;
-}
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_SKIP;
+                }
+                else if (event.key.code == sf::Keyboard::Num1)
+                {
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_STRIKE;
+                }
+                else if (event.key.code == sf::Keyboard::Num2)
+                {
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_EXHAUST;
+                }
+                else if (event.key.code == sf::Keyboard::Num3)
+                {
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_USE_WEAPON;
+                }
+                else if (event.key.code == sf::Keyboard::Num4)
+                {
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_SWAP_IN;
+                }
+                else if (event.key.code == sf::Keyboard::Num5)
+                {
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_HEAL;
+                }
+                else if (event.key.code == sf::Keyboard::Num6)
+                {
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_ULTIMATE;
+                }
+                else if (event.key.code == sf::Keyboard::Num7)
+                {
+                    window.setActive(false);
+                    resumeRendering();
+                    return ACTION_SKIP;
+                }
+            }
         }
-    }
         window.clear(sf::Color::Black);
         drawBattleView(window, font, state, nullptr);
 
@@ -897,16 +896,16 @@ else if (event.key.code == sf::Keyboard::Num7)
         drawInventoryPanel(window, font, state, playerId);
         window.display();
     }
-window.setActive(false);
-resumeRendering();
-return ACTION_SKIP;
+    window.setActive(false);
+    resumeRendering();
+    return ACTION_SKIP;
 }
 
 int showEnemyTargetMenuOnBattleScreen(sf::RenderWindow &window, sf::Font &font, SharedState *state)
 {
     int selected = 0;
     pauseRendering();
-window.setActive(true);
+    window.setActive(true);
 
     while (window.isOpen())
     {
@@ -918,7 +917,7 @@ window.setActive(true);
         {
             sem_post(&state->stateLock);
             window.setActive(false);
-resumeRendering();
+            resumeRendering();
             return -1;
         }
 
@@ -938,8 +937,8 @@ resumeRendering();
                 window.close();
 
                 requestQuit(state);
-window.setActive(false);
-resumeRendering();
+                window.setActive(false);
+                resumeRendering();
                 return -1;
             }
 
@@ -949,7 +948,7 @@ resumeRendering();
                 {
                     requestQuit(state);
                     window.setActive(false);
-resumeRendering();
+                    resumeRendering();
                     return -1;
                 }
                 if (event.key.code == sf::Keyboard::Up)
@@ -994,7 +993,7 @@ resumeRendering();
                     if (valid == 1)
                     {
                         window.setActive(false);
-resumeRendering();
+                        resumeRendering();
                         return selected;
                     }
                 }
@@ -1035,24 +1034,24 @@ resumeRendering();
 
         window.display();
     }
-window.setActive(false);
-resumeRendering();
+    window.setActive(false);
+    resumeRendering();
     return -1;
 }
 int showWeaponSelectMenu(sf::RenderWindow &window, sf::Font &font,
                          SharedState *state, int playerId)
 {
     pauseRendering();
-window.setActive(true);
+    window.setActive(true);
     int selected = 0;
- 
+
     while (window.isOpen())
     {
         // ── Snapshot inventory under lock ─────────────────────────────────
         sem_wait(&state->stateLock);
         PlayerInventory inv = state->players[playerId].inventory;
         sem_post(&state->stateLock);
- 
+
         // Build a list of active weapon indices
         int activeIdx[MAX_WEAPONS];
         int activeCount = 0;
@@ -1061,7 +1060,7 @@ window.setActive(true);
             if (inv.weapons[i].active == 1)
                 activeIdx[activeCount++] = i;
         }
- 
+
         if (activeCount == 0)
         {
             // Nothing to pick — treat as cancel
@@ -1069,10 +1068,12 @@ window.setActive(true);
             resumeRendering();
             return -1;
         }
- 
-        if (selected >= activeCount) selected = activeCount - 1;
-        if (selected < 0)           selected = 0;
- 
+
+        if (selected >= activeCount)
+            selected = activeCount - 1;
+        if (selected < 0)
+            selected = 0;
+
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -1095,12 +1096,14 @@ window.setActive(true);
                 if (event.key.code == sf::Keyboard::Up)
                 {
                     selected--;
-                    if (selected < 0) selected = activeCount - 1;
+                    if (selected < 0)
+                        selected = activeCount - 1;
                 }
                 else if (event.key.code == sf::Keyboard::Down)
                 {
                     selected++;
-                    if (selected >= activeCount) selected = 0;
+                    if (selected >= activeCount)
+                        selected = 0;
                 }
                 else if (event.key.code == sf::Keyboard::Enter)
                 {
@@ -1116,14 +1119,14 @@ window.setActive(true);
                 }
             }
         }
- 
+
         window.clear(sf::Color::Black);
         drawBattleView(window, font, state, nullptr);
- 
+
         // ── Draw weapon list ──────────────────────────────────────────────
         float x = 35;
         float y = 670;
- 
+
         sf::Text header;
         header.setFont(font);
         header.setCharacterSize(14);
@@ -1132,7 +1135,7 @@ window.setActive(true);
         header.setPosition(x, y);
         window.draw(header);
         y += 20;
- 
+
         for (int i = 0; i < activeCount; i++)
         {
             int wi = activeIdx[i];
@@ -1143,7 +1146,7 @@ window.setActive(true);
                     inv.weapons[wi].weapon.name,
                     inv.weapons[wi].weapon.damage,
                     inv.weapons[wi].weapon.slotSize);
- 
+
             sf::Text entry;
             entry.setFont(font);
             entry.setCharacterSize(13);
@@ -1153,37 +1156,39 @@ window.setActive(true);
             window.draw(entry);
             y += 18;
         }
- 
+
         window.display();
     }
- 
+
     window.setActive(false);
     resumeRendering();
     return -1;
 }
- int showStorageSelectMenu(sf::RenderWindow &window, sf::Font &font,
+int showStorageSelectMenu(sf::RenderWindow &window, sf::Font &font,
                           SharedState *state, int playerId)
 {
     pauseRendering();
     window.setActive(true);
     int selected = 0;
- 
+
     while (window.isOpen())
     {
         sem_wait(&state->stateLock);
         PlayerInventory inv = state->players[playerId].inventory;
         sem_post(&state->stateLock);
- 
+
         if (inv.storageCount == 0)
         {
             window.setActive(false);
             resumeRendering();
             return -1; // nothing in storage
         }
- 
-        if (selected >= inv.storageCount) selected = inv.storageCount - 1;
-        if (selected < 0)                selected = 0;
- 
+
+        if (selected >= inv.storageCount)
+            selected = inv.storageCount - 1;
+        if (selected < 0)
+            selected = 0;
+
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -1206,12 +1211,14 @@ window.setActive(true);
                 if (event.key.code == sf::Keyboard::Up)
                 {
                     selected--;
-                    if (selected < 0) selected = inv.storageCount - 1;
+                    if (selected < 0)
+                        selected = inv.storageCount - 1;
                 }
                 else if (event.key.code == sf::Keyboard::Down)
                 {
                     selected++;
-                    if (selected >= inv.storageCount) selected = 0;
+                    if (selected >= inv.storageCount)
+                        selected = 0;
                 }
                 else if (event.key.code == sf::Keyboard::Enter)
                 {
@@ -1227,13 +1234,13 @@ window.setActive(true);
                 }
             }
         }
- 
+
         window.clear(sf::Color::Black);
         drawBattleView(window, font, state, nullptr);
- 
+
         float x = 35;
         float y = 670;
- 
+
         sf::Text header;
         header.setFont(font);
         header.setCharacterSize(14);
@@ -1242,7 +1249,7 @@ window.setActive(true);
         header.setPosition(x, y);
         window.draw(header);
         y += 20;
- 
+
         for (int i = 0; i < inv.storageCount; i++)
         {
             char line[120];
@@ -1252,7 +1259,7 @@ window.setActive(true);
                     inv.longTermStorage[i].name,
                     inv.longTermStorage[i].damage,
                     inv.longTermStorage[i].slotSize);
- 
+
             sf::Text entry;
             entry.setFont(font);
             entry.setCharacterSize(13);
@@ -1262,15 +1269,15 @@ window.setActive(true);
             window.draw(entry);
             y += 18;
         }
- 
+
         window.display();
     }
- 
+
     window.setActive(false);
     resumeRendering();
     return -1;
 }
- 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // handlePlayerTurnInput  (replaces the old version)
 //
@@ -1293,33 +1300,33 @@ void handlePlayerTurnInput(sf::RenderWindow &window, sf::Font &font,
         return;
     }
     sem_post(&state->stateLock);
- 
+
     int actionType = showActionMenuOnBattleScreen(window, font, state, playerId);
- 
+
     int targetType = ENTITY_NONE;
-    int targetId   = -1;
- 
+    int targetId = -1;
+
     if (actionType == ACTION_STRIKE || actionType == ACTION_EXHAUST)
     {
-        targetId   = showEnemyTargetMenuOnBattleScreen(window, font, state);
+        targetId = showEnemyTargetMenuOnBattleScreen(window, font, state);
         targetType = ENTITY_ENEMY;
     }
     else if (actionType == ACTION_USE_WEAPON)
     {
         // Step 1: pick which weapon to use
         int weaponIndex = showWeaponSelectMenu(window, font, state, playerId);
- 
+
         if (weaponIndex == -1)
         {
             // Player cancelled or no weapons — fall back to skip
             actionType = ACTION_SKIP;
             targetType = ENTITY_NONE;
-            targetId   = -1;
+            targetId = -1;
         }
         else
         {
             // Step 2: pick which enemy to hit
-            targetId   = showEnemyTargetMenuOnBattleScreen(window, font, state);
+            targetId = showEnemyTargetMenuOnBattleScreen(window, font, state);
             // targetType carries the weapon index so the Arbiter knows
             // which inventory slot to use for damage (matches processAction).
             targetType = weaponIndex;
@@ -1328,24 +1335,24 @@ void handlePlayerTurnInput(sf::RenderWindow &window, sf::Font &font,
     else if (actionType == ACTION_SWAP_IN)
     {
         int storageIndex = showStorageSelectMenu(window, font, state, playerId);
- 
+
         if (storageIndex == -1)
         {
             // Nothing in storage or player cancelled — fall back to skip
             actionType = ACTION_SKIP;
             targetType = ENTITY_NONE;
-            targetId   = -1;
+            targetId = -1;
         }
         else
         {
-            targetId   = storageIndex;
+            targetId = storageIndex;
             targetType = ENTITY_NONE;
         }
     }
     // ACTION_HEAL, ACTION_ULTIMATE, ACTION_SKIP need no secondary menu.
- 
+
     writeInputBuffer(state, playerId, actionType, targetType, targetId);
- 
+
     cout << "[HIP] Player " << playerId
          << " action=" << actionType
          << " targetType=" << targetType
@@ -1365,7 +1372,7 @@ int main()
 
     cout << "HIP attached to shared memory." << endl;
     sf::RenderWindow window(sf::VideoMode(1100, 800), "Chrono Rift - HIP");
-window.setActive(false);
+    window.setActive(false);
 
     sf::Font font;
 
@@ -1376,7 +1383,7 @@ window.setActive(false);
         return 1;
     }
     int partySize = selectPartySize(window, font, state);
-window.setActive(false);
+    window.setActive(false);
     sem_wait(&state->stateLock);
 
     state->partySize = partySize;
@@ -1440,95 +1447,97 @@ window.setActive(false);
             usleep(2000000);
             break;
         }
- sem_wait(&state->stateLock);
+        sem_wait(&state->stateLock);
 
-int dropPending = state->dropPending;
-int waitingChoice = (state->dropChoice == -1);
-Weapon dropped = state->pendingDrop;
+        int dropPending = state->dropPending;
+        int waitingChoice = (state->dropChoice == -1);
+        Weapon dropped = state->pendingDrop;
 
-sem_post(&state->stateLock);
+        sem_post(&state->stateLock);
 
-    // ── Weapon drop decision ─────────────────────────────
-   if (dropPending == 1 &&
-    waitingChoice == 1)
-    {
-        pauseRendering();
-        window.setActive(true);
-
-        bool answered = false;
-
-        while (window.isOpen() && answered == false)
+        // ── Weapon drop decision ─────────────────────────────
+        if (dropPending == 1 &&
+            waitingChoice == 1)
         {
-            sf::Event event;
+            pauseRendering();
+            window.setActive(true);
 
-            while (window.pollEvent(event))
+            bool answered = false;
+
+            while (window.isOpen() && answered == false)
             {
-                if (event.type == sf::Event::Closed)
+                sf::Event event;
+
+                while (window.pollEvent(event))
                 {
-                    requestQuit(state);
-                    answered = true;
-                    break;
+                    if (event.type == sf::Event::Closed)
+                    {
+                        requestQuit(state);
+                        answered = true;
+                        break;
+                    }
+
+                    if (event.type == sf::Event::KeyPressed)
+                    {
+                        if (event.key.code == sf::Keyboard::Y)
+                        {
+                            sem_wait(&state->stateLock);
+                            state->dropChoice = 1;
+                            sem_post(&state->stateLock);
+                            sem_post(&state->dropAnswered); // wake Arbiter immediately
+
+                            answered = true;
+                        }
+                        else if (event.key.code == sf::Keyboard::N)
+                        {
+                            sem_wait(&state->stateLock);
+                            state->dropChoice = 0;
+                            sem_post(&state->stateLock);
+                            sem_post(&state->dropAnswered); // wake Arbiter immediately
+
+                            answered = true;
+                        }
+                    }
                 }
 
-                if (event.type == sf::Event::KeyPressed)
-                {
-                    if (event.key.code == sf::Keyboard::Y)
-                    {
-                        sem_wait(&state->stateLock);
-                        state->dropChoice = 1;
-                        sem_post(&state->stateLock);
+                window.clear(sf::Color::Black);
 
-                        answered = true;
-                    }
-                    else if (event.key.code == sf::Keyboard::N)
-                    {
-                        sem_wait(&state->stateLock);
-                        state->dropChoice = 0;
-                        sem_post(&state->stateLock);
+                drawBattleView(window, font, state, nullptr);
 
-                        answered = true;
-                    }
-                }
+                sf::Text text;
+                text.setFont(font);
+                text.setCharacterSize(22);
+                text.setFillColor(sf::Color::Yellow);
+
+                string msg =
+                    "WEAPON DROP: " +
+                    string(dropped.name) +
+                    "\nPress Y to pick up\nPress N to reject";
+
+                text.setString(msg);
+                text.setPosition(300, 300);
+
+                window.draw(text);
+                window.display();
             }
 
-            window.clear(sf::Color::Black);
+            window.setActive(false);
+            resumeRendering();
 
-            drawBattleView(window, font, state, nullptr);
-
-            sf::Text text;
-            text.setFont(font);
-            text.setCharacterSize(22);
-            text.setFillColor(sf::Color::Yellow);
-
-            string msg =
-                "WEAPON DROP: " +
-                string(dropped.name) +
-                "\nPress Y to pick up\nPress N to reject";
-
-            text.setString(msg);
-            text.setPosition(300, 300);
-
-            window.draw(text);
-            window.display();
+            continue;
         }
+        if (isPlayerTurn == 1)
+        {
+            // ── Normal turn input ───────────────────────────────
+            if (lastHandledTurnType != ENTITY_PLAYER ||
+                lastHandledTurnId != activePlayerId)
+            {
+                handlePlayerTurnInput(window, font, state, activePlayerId);
 
-        window.setActive(false);
-        resumeRendering();
-
-        continue;
-    }
-  if (isPlayerTurn == 1)
-{
-    // ── Normal turn input ───────────────────────────────
-    if (lastHandledTurnType != ENTITY_PLAYER ||
-        lastHandledTurnId != activePlayerId)
-    {
-        handlePlayerTurnInput(window, font, state, activePlayerId);
-
-        lastHandledTurnType = ENTITY_PLAYER;
-        lastHandledTurnId = activePlayerId;
-    }
-}
+                lastHandledTurnType = ENTITY_PLAYER;
+                lastHandledTurnId = activePlayerId;
+            }
+        }
         else
         {
             lastHandledTurnType = ENTITY_NONE;
