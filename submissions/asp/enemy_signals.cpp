@@ -3,27 +3,17 @@
 #include <iostream>
 #include <csignal>
 #include <pthread.h>
-
+#include <unistd.h>
 #include "enemy_signals.h"
 
 
 static SharedState *g_signalState = nullptr;
 
-
-static void handleSigusr1(int )
+static void handleSigusr1(int)
 {
-    if (!g_signalState)
-        return;
-
-    
-    int targetId = g_signalState->stunTargetId;
-
-    if (targetId >= 0 && targetId < MAX_ENEMIES)
-    {
-        g_signalState->enemies[targetId].stunned = 1;
-        std::cout << "[ASP] SIGUSR1: Enemy " << targetId
-                  << " marked stunned." << std::endl;
-    }
+    std::cout << "[ASP] SIGUSR1 received. Enemy stunned for 3 seconds." << std::endl;
+    sleep(3);
+    std::cout << "[ASP] Stun finished. Enemy logic resumed." << std::endl;
 }
 
 void setupEnemySignalHandlers(SharedState *state)

@@ -3,6 +3,7 @@
 #include <ctime>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "shared_memory.h"
 #include "enemy_threads.h"
@@ -21,6 +22,10 @@ int runNpcProcess()
     }
 
     std::cout << "[ASP] Attached to shared memory." << std::endl;
+
+    sem_wait(&state->stateLock);
+    state->aspPid = getpid();
+    sem_post(&state->stateLock);
 
     while (state->gameInitialized == 0)
     {

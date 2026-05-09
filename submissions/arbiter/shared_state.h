@@ -122,6 +122,8 @@ struct SharedState
     int dropChoice; 
     
     int arbiterPid;
+int hipPid;
+int aspPid;
 
     
     int partySizeSelected;

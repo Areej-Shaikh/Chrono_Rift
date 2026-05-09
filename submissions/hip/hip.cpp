@@ -22,7 +22,12 @@ struct RenderThreadData
     int playerHitFrames[MAX_PLAYERS];
     int prevPlayerHp[MAX_PLAYERS];
 };
-
+void stunHandler(int sig)
+{
+    cout << "[SIGNAL] Stun signal received. Pausing for 3 seconds..." << endl;
+    sleep(3);
+    cout << "[SIGNAL] Stun finished. Resuming..." << endl;
+}
 RenderThreadData renderData;
 pthread_t renderThread;
 void pauseRendering()
@@ -1511,13 +1516,19 @@ int main()
     sleep(1);
 
     SharedState *state = attachSharedMemory();
-
+struct sigaction stunAction;
+stunAction.sa_handler = stunHandler;
+sigemptyset(&stunAction.sa_mask);
+stunAction.sa_flags = 0;
+sigaction(SIGUSR1, &stunAction, NULL);
     if (state == NULL)
     {
         cout << "HIP failed to attach shared memory." << endl;
         return 1;
     }
-
+sem_wait(&state->stateLock);
+state->hipPid = getpid();
+sem_post(&state->stateLock);
     cout << "HIP attached to shared memory." << endl;
     sf::RenderWindow window(sf::VideoMode(1100, 900), "Chrono Rift - HIP");
     window.setActive(false);

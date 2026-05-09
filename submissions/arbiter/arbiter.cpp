@@ -670,7 +670,7 @@ void processAction(SharedState *state)
 
                     
                     sem_post(&state->stateLock);
-                    kill(g_aspPid, SIGUSR1);
+                    kill(state->aspPid, SIGUSR1);
                     sem_wait(&state->stateLock);
                 }
 
@@ -867,7 +867,18 @@ void processAction(SharedState *state)
             {
                 int dmg = state->enemies[eid].damage;
                 state->players[tid].hp -= dmg;
+if (state->players[tid].hp > 0 && rand() % 100 < 25)
+{
+    char stunLog[100];
+    sprintf(stunLog, "Player %d stunned for 3 seconds", tid + 1);
+    addActionLog(state, stunLog);
 
+    cout << "[Arbiter] Player " << tid << " stunned!" << endl;
+
+    sem_post(&state->stateLock);
+    kill(state->hipPid, SIGUSR1);
+    sem_wait(&state->stateLock);
+}
                 state->lastNpcActionEnemyId = eid;
                 state->lastNpcActionType = ACTION_STRIKE;
                 state->lastNpcTargetPlayerId = tid;
@@ -1332,6 +1343,8 @@ int main()
     state->gameInitialized = 0;
     state->gameStatus = GAME_RUNNING;
     state->arbiterPid = getpid();
+    state->hipPid = -1;
+state->aspPid = -1;
     state->enemiesKilled = 0;
     state->currentTurnType = ENTITY_NONE;
     state->currentTurnId = -1;

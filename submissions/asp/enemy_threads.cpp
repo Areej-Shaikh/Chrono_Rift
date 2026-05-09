@@ -5,7 +5,8 @@
 #include <pthread.h>
 #include <time.h>
 #include <cstring>
-
+#include <signal.h>
+#include <unistd.h>
 #include "enemy_threads.h"
 #include "enemy_actions.h"
 #include "enemy_signals.h"
@@ -18,7 +19,12 @@ struct EnemyThreadArg
 
 static EnemyThreadArg *g_enemyThreadArgs = nullptr;
 
-
+void stunHandler(int sig)
+{
+    cout << "[SIGNAL] Stun signal received. Pausing for 3 seconds..." << endl;
+    sleep(3);
+    cout << "[SIGNAL] Stun finished. Resuming..." << endl;
+}
 static void enemyThreadCleanupHandler(void *arg)
 {
     EnemyThreadArg *threadArg = (EnemyThreadArg *)arg;
@@ -96,26 +102,9 @@ static void *enemyThreadFunction(void *arg)
 
         
         sem_wait(&state->stateLock);
-        int wasStunned = state->enemies[enemyId].stunned;
+       
         sem_post(&state->stateLock);
-if (wasStunned == 1)
-{
-    cout << "[ASP] Enemy " << enemyId
-         << " stunned. Pausing 3 seconds." << endl;
 
-    struct timespec ts = {3, 0};
-    nanosleep(&ts, nullptr);
-
-    sem_wait(&state->stateLock);
-    state->enemies[enemyId].stunned = 0;
-    sem_post(&state->stateLock);
-
-    cout << "[ASP] Enemy " << enemyId
-         << " stun ended." << endl;
-
-    continue;
-}
-        
       
 sem_wait(&state->stateLock);
 
