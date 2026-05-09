@@ -426,7 +426,7 @@ void handleWeaponDrop(SharedState *state, int killingPlayerId, int defeatedEnemy
 
         char logText[120];
         sprintf(logText, "DROP: %s appeared. Player %d choose Y/N.",
-                dropped.name, killingPlayerId);
+                dropped.name, killingPlayerId + 1);
         addActionLog(state, logText);
 
         cout << "[Arbiter] " << logText << endl;
@@ -450,7 +450,7 @@ void processDropChoice(SharedState *state)
         if (added == 1)
         {
             char logText[120];
-            sprintf(logText, "Player %d picked up %s", pid, dropped.name);
+            sprintf(logText, "Player %d picked up %s", pid + 1, dropped.name);
             addActionLog(state, logText);
 
             cout << "[Arbiter] " << logText << endl;
@@ -458,7 +458,7 @@ void processDropChoice(SharedState *state)
         else
         {
             char logText[120];
-            sprintf(logText, "Player %d could not pick %s because it is locked", pid, dropped.name);
+            sprintf(logText, "Player %d could not pick %s because it is locked", pid + 1, dropped.name);
             addActionLog(state, logText);
 
             cout << "[Arbiter] " << logText << endl;
@@ -675,7 +675,7 @@ void processAction(SharedState *state)
                 state->enemies[tid].hp -= dmg;
 
                 char logText[100];
-                sprintf(logText, "Player %d struck Enemy %d for %d damage", pid, tid, dmg);
+                sprintf(logText, "Player %d struck NPC %d for %d damage", pid + 1, tid + 1, dmg);
                 addActionLog(state, logText);
 
                 cout << "[Arbiter] Player " << pid
@@ -692,7 +692,7 @@ void processAction(SharedState *state)
                     state->stunTargetId = tid;
 
                     char stunLog[100];
-                    sprintf(stunLog, "Enemy %d stunned for 3 seconds", tid);
+                    sprintf(stunLog, "NPC %d stunned for 3 seconds", tid + 1);
                     addActionLog(state, stunLog);
 
                     cout << "[Arbiter] Enemy " << tid << " stunned!" << endl;
@@ -722,7 +722,7 @@ void processAction(SharedState *state)
                     {
                         spawnEnemyAt(state, tid);
                         char spawnLog[100];
-                        sprintf(spawnLog, "A new Enemy %d entered the rift", tid);
+                        sprintf(spawnLog, "A new NPC %d entered the rift", tid + 1);
                         addActionLog(state, spawnLog);
                         cout << "[Arbiter] Enemy " << tid << " respawned for continued combat." << endl;
                     }
@@ -744,7 +744,7 @@ void processAction(SharedState *state)
                 }
 
                 char logText[100];
-                sprintf(logText, "Player %d exhausted Enemy %d by %d stamina", pid, tid, reduce);
+                sprintf(logText, "Player %d exhausted NPC %d by %d stamina", pid + 1, tid + 1, reduce);
                 addActionLog(state, logText);
 
                 cout << "[Arbiter] Player " << pid
@@ -770,7 +770,7 @@ void processAction(SharedState *state)
             }
 
             char logText[100];
-            sprintf(logText, "Player %d healed by %d HP", pid, healAmount);
+            sprintf(logText, "Player %d healed by %d HP", pid + 1, healAmount);
             addActionLog(state, logText);
 
             cout << "[Arbiter] Player " << pid
@@ -794,10 +794,10 @@ void processAction(SharedState *state)
                 state->enemies[tid].hp -= dmg;
 
                 char logText[100];
-                sprintf(logText, "Player %d used %s on Enemy %d for %d damage",
-                        pid,
+                sprintf(logText, "Player %d used %s on NPC %d for %d damage",
+                        pid + 1,
                         state->players[pid].inventory.weapons[weaponIndex].weapon.name,
-                        tid,
+                        tid + 1,
                         dmg);
                 addActionLog(state, logText);
 
@@ -816,7 +816,7 @@ void processAction(SharedState *state)
                     if (state->enemiesKilled < 10)
                     {
                         spawnEnemyAt(state, tid);
-                        addActionLog(state, "A new enemy entered the rift");
+                        addActionLog(state, "A new NPC entered the rift");
                     }
                 }
             }
@@ -830,13 +830,13 @@ void processAction(SharedState *state)
             if (success == 1)
             {
                 char logText[100];
-                sprintf(logText, "Player %d swapped in a weapon", pid);
+                sprintf(logText, "Player %d swapped in a weapon", pid + 1);
                 addActionLog(state, logText);
             }
             else
             {
                 char logText[100];
-                sprintf(logText, "Player %d failed to swap in weapon", pid);
+                sprintf(logText, "Player %d failed to swap in weapon", pid + 1);
                 addActionLog(state, logText);
             }
             state->players[pid].stamina = 0;
@@ -869,7 +869,7 @@ void processAction(SharedState *state)
         else if (req.actionType == ACTION_SKIP)
         {
             char logText[100];
-            sprintf(logText, "Player %d skipped turn", pid);
+            sprintf(logText, "Player %d skipped turn", pid + 1);
             addActionLog(state, logText);
 
             cout << "[Arbiter] Player " << pid << " skipped." << endl;
@@ -902,7 +902,7 @@ void processAction(SharedState *state)
                 state->lastNpcTargetPlayerId = tid;
 
                 char logText[100];
-                sprintf(logText, "Enemy %d struck Player %d for %d damage", eid, tid, dmg);
+                sprintf(logText, "NPC %d struck Player %d for %d damage", eid + 1, tid + 1, dmg);
                 addActionLog(state, logText);
 
                 cout << "[Arbiter] Enemy " << eid
@@ -919,7 +919,7 @@ void processAction(SharedState *state)
                     releaseAllPlayerArtifacts(state, tid);
 
                     char deathLog[100];
-                    sprintf(deathLog, "Player %d defeated. Artifacts released.", tid);
+                    sprintf(deathLog, "Player %d defeated. Artifacts released.", tid + 1);
                     addActionLog(state, deathLog);
 
                     cout << "[Arbiter] " << deathLog << endl;
@@ -933,7 +933,7 @@ void processAction(SharedState *state)
             state->lastNpcTargetPlayerId = -1;
 
             char logText[100];
-            sprintf(logText, "Enemy %d skipped turn", eid);
+            sprintf(logText, "NPC %d skipped turn", eid + 1);
             addActionLog(state, logText);
 
             cout << "[Arbiter] Enemy " << eid << " skipped." << endl;
