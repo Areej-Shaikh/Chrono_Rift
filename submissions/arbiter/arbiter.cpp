@@ -4,6 +4,7 @@
 #include <cstring>
 #include <unistd.h>
 #include <csignal>
+#include <ctime>
 #include <pthread.h>
 #include <semaphore.h>
 #include <sys/wait.h>
@@ -501,7 +502,7 @@ void spawnEnemyAt(SharedState *state, int index)
 
 void initEntities(SharedState *state)
 {
-    srand(ROLL_NUMBER);
+    srand(ROLL_NUMBER + time(NULL) + getpid());
 
     
     int enemyCount = randRange(2, 9);
